@@ -2,7 +2,56 @@
 
 The three "watchful" steps of a liberation pipeline. `discover.py` finds what's available upstream; `audit.py` reports on what came in; `reconcile.py` (opt-in) verifies that the processed output matches authoritative top-line totals from the original. Together, they are what makes a pipeline *trustworthy* rather than just *runnable*.
 
-The patterns here are distilled from BoulderPublicData/Election-Results (where `reconcile.py` originated) and the IPEDS pipeline (which formalized the `discover.py` self-refresh).
+The patterns here are distilled from BoulderPublicData/Election-Results (where `reconcile.py` originated), the IPEDS pipeline (which formalized the `discover.py` self-refresh), and ProPublica's [data-bulletproofing guide](https://github.com/propublica/guides/blob/master/data-bulletproofing.md) (the journalistic practice that long predates either).
+
+## Pre-extraction bulletproofing
+
+Before writing a single parser, vet the source itself. ProPublica's data-bulletproofing guide distills the practice across a decade of accountability journalism; the checklist below adapts it for the liberation workflow. Most of these are five-minute checks; skipping them buys hours of debugging later.
+
+### Source-level checks
+
+- **Record count.** Confirm the total matches what the publisher claims (or what an independent count says it should be). Watch for *suspicious round limits* — 65,536 rows in an Excel export, 1,048,576 rows, exactly 10,000 rows, powers of two — they often mean the export was truncated upstream.
+- **Top-line totals.** If the source publishes a "Total" line, sum the rows and compare. A mismatch here is either an arithmetic error in the source (document it explicitly in `docs/data-dictionary.md` under "Known mismatches" — see [reconciliation](#reconciliation)) or evidence the export is incomplete.
+- **Date and geography ranges.** Does the data actually cover the years and jurisdictions the publisher claims? A "1980–present" dataset that has zero records before 1995 needs explaining.
+- **Categorical field consistency.** `GROUP BY` every important categorical column and read the result. Spelling variations (`"Main St"` vs `"Main Street"` vs `"MAIN ST."`), trailing whitespace, and case differences are how dirty data hides.
+- **Blank values.** Determine whether blanks are *real values* (the publisher genuinely didn't measure this) or *import errors* (the column dropped during export). The two cases require different treatment in the parser.
+- **Suspicious sentinel values.** `-9`, `9999`, `99999999`, `-1`, `1900-01-01`, the empty string — government datasets use ALL of these for "missing." Document the ones this source uses and convert them to NA in the parser, not silently in the pipeline.
+
+### Methodology and provenance checks
+
+- **Find the original documentation.** The publisher's codebook, methodology PDF, statute or regulation mandating the publication. Read it before parsing. If you can't find one, that's a finding worth recording in `AGENTS.md` "Known limitations."
+- **Identify the contact.** Records officer, FOIA liaison, the journalist who last covered this beat, the academic who maintains a derivative dataset. Make the introduction early; you'll need them when something is weird.
+- **Demand questionnaires/methodologies for survey-derived data.** Refusal to share methodology is a red flag worth naming. Identify non-scientific methods (web-based panels, self-selection) and bake that caveat into the dictionary.
+- **Cross-source corroboration.** Find an independent source for the same underlying phenomenon — a federal mirror of state data, an aggregator (Census, BLS), a watchdog dataset that audits the original. Two sources that match build confidence; two that diverge surface a story.
+
+### Cognitive checks worth naming
+
+- *"If something doesn't seem right, it probably isn't."* The 50% year-over-year jump that doesn't appear in the press? Almost always an extraction bug, not a real spike.
+- *"Avoid false precision."* Reporting "52.18%" when the underlying counts have ±30 of margin invents accuracy. The data dictionary should declare which columns have meaningful precision and which round to integers.
+- *"Set a cutoff date."* Organic datasets that grow during your reporting will rewrite history under you. Pick a freeze date, document it, and don't reach past it except for explicit corrections.
+- *"Spot-check physically."* For a small sample (say, 10 records), open the original source artifact and verify each cell of the processed CSV by eye. This catches column-shift bugs that no automated check finds.
+
+### A practitioner's prep list
+
+The colleagues quoted in ProPublica's guide each contributed one durable practice; the union is the working baseline:
+
+- **Maintain a work log.** A `docs/notebook.md` recording each cleaning decision, why, and when. The IPEDS pipeline's `AGENTS.md` is the maximalist version; a chronological log is the minimum.
+- **Document SQL.** Every non-trivial query in the audit or reconcile modules gets a comment explaining why this aggregation/filter, not just what it does.
+- **Write the alternate query.** For top-line numbers that will be published, derive the same value via a different code path. Two queries that agree raise confidence by more than two queries that look similar.
+- **Random-sample validation.** Pull 50 rows at random from the processed CSV; verify each against the original. Repeat after every significant parser change.
+- **Pre-publication review.** Show findings to the subject before publishing them. Errors caught at this stage are corrections; errors caught after are retractions.
+
+### How this fits the workflow
+
+| Workflow phase | Bulletproofing checks that belong here |
+|---|---|
+| **Survey** | Source-level checks against publisher's own summary; methodology/provenance fact-finding; identifying the contact |
+| **Extract** | Sentinel-value handling in parsers; categorical consistency; physical spot-checks of the first parser's output |
+| **Tidy** | Date and geography range verification post-normalization; cross-source corroboration setup |
+| **Audit** | `audit.py` automates the easy checks (null rates, distinct values, suspicious counts); see [Audit](#audit) below |
+| **Reconcile** | Top-line totals against the source's own published total; see [Reconciliation](#reconciliation) below |
+
+The Survey-phase checks are the cheapest and the most under-done. Lean into them.
 
 ## Discovery
 

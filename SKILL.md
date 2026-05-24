@@ -46,13 +46,22 @@ This skill maps to the CRISP-DM phases of **data understanding → preparation �
 
 Before opening a Python file, answer:
 
-- **What is this document?** Born-digital PDF (text extractable), scanned PDF (image-only, needs OCR), HTML page, panel-format XLSX, CSV, JSON API response, database export?
+- **What is this document?** Born-digital PDF (text extractable), scanned PDF (image-only, needs OCR), HTML page, panel-format XLSX, CSV, JSON API response, database export? Frame the extraction problem against the [Table Understanding taxonomy](references/movement-history.md#table-understanding-tu) — naming the subproblem (Table Detection? Structure Recognition? Functional Analysis? Canonicalization?) clarifies what's hard.
 - **What is the unit of observation?** One row per ballot? Per precinct × contest × candidate? Per institution × year × variable? This is the most consequential design decision and is hard to change later.
 - **What are the structural quirks?** Merged header cells; tables split across pages; footnotes that change column meaning; mid-period schema changes; multiple tables on one page; narrative-embedded numbers.
 - **What is the public-interest stake?** Who collected this, who needs it, what gets lost if no one liberates it? This shapes documentation priorities later.
 - **What history of access does the source have?** Has it been the subject of FOIA, MuckRock, or CORA requests? Is there a journalistic record of similar liberation work? Cite this in the README.
 
-Write a one-page Survey note (it becomes the seed of the project README). Decide whether this is **bespoke** (one-time extraction, single source, simple pipeline) or **infrastructural** (recurring data with vintages, multi-source, harmonized). The two cases share scaffolding but the second invests more upfront in `discover.py`, the concept catalog, and CI.
+**Search and catalog — ask before assuming.** Before writing any code, ask the user explicitly:
+
+- *What documentation exists for this source?* Codebooks, methodology PDFs, the publisher's own data dictionary, the survey questionnaire, the statute or regulation that mandates the publication. The original documentation is almost always more reliable than reverse-engineered guesses.
+- *What prior work has touched this data?* Existing journalism, academic papers, FOIA logs, NICAR/IRE tipsheets, agency white papers, GitHub repos of past extraction attempts. A prior liberation effort (even a failed one) catches you up on the quirks for free.
+- *What's the canonical contact?* The publisher's records officer, the journalist who last covered it, the academic who maintains a derivative dataset, the open-government group that's been pestering the agency. ProPublica's [data-bulletproofing checklist](references/discovery-and-audit.md#pre-extraction-bulletproofing) treats "ask the source" as a baseline practice, not an escalation.
+- *What corroborating sources exist?* A separate publisher of the same underlying phenomenon — federal mirror of state data, aggregator like Census or BLS, watchdog dataset that audits the original — turns reconciliation from "compare to the source's own total" into "compare to an independent count."
+
+If the user supplies a URL, FOIA tracking ID, prior repo, or paper, read it before drafting the Survey notes. If the user doesn't know, that's the time to web-search — but ask first; the user usually has better leads than the open web does.
+
+Write a one-page Survey note (it becomes the seed of the project README). Decide whether this is **bespoke** (one-time extraction, single source, simple pipeline) or **infrastructural** (recurring data with vintages, multi-source, harmonized). The two cases share scaffolding but the second invests more upfront in `discover.py`, the concept catalog, and CI. Include the catalogued sources in `docs/methodology.qmd` from the start so the next contributor (or future Claude) doesn't re-discover them.
 
 ### 2. Scaffold — set up the project
 

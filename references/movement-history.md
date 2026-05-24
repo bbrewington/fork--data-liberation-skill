@@ -87,6 +87,41 @@ The state of the art for born-digital PDF table extraction, surveyed by [Kasem e
 
 The [ICDAR table competition evaluation methodology](https://doi.org/10.1145/2361354.2361365) (Göbel et al., 2012) gives the canonical performance metrics: precision/recall on table regions, on cell adjacency relations, and (for TI) tree-edit-distance similarity (TEDS). For civic liberation purposes the more useful audit is *top-line reconciliation* (see the Boulder Election-Results `reconcile.py` pattern) — does the sum of votes in the extracted CSV match the published total? — because it tests both extraction fidelity and downstream cleaning together.
 
+#### Where the field has expanded since 2023
+
+The Shigarov decomposition above frames the *extraction* side of table understanding. A parallel literature, surveyed in [tanfiona/LLM-on-Tabular-Data-Prediction-Table-Understanding-Data-Generation](https://github.com/tanfiona/LLM-on-Tabular-Data-Prediction-Table-Understanding-Data-Generation), organizes the *interpretation* side into eight task families that researchers benchmark separately:
+
+| Task family | What the system does |
+|---|---|
+| **Question Answering** | Answer natural-language questions against a table (open or closed-domain). |
+| **Numeric Question Answering** | Subset where the answer requires arithmetic over multiple cells — sums, ratios, year-over-year deltas. The hard case for LLMs. |
+| **Text2SQL** | Translate a question into the SQL that would answer it against a known schema. |
+| **Table2Text** | Generate a faithful natural-language summary of a table or table region. |
+| **Fact Verification** | Decide whether a claim is supported, contradicted, or unanswerable from a table. |
+| **Table Profiling** | Produce metadata about a table — dtypes, key columns, plausible joins, semantic types. |
+| **Table Transformation** | Reshape a table — pivot, unpivot, fill, dedupe — by example or instruction. |
+| **Entity Matching** | Decide whether two rows from different tables refer to the same real-world entity. |
+
+For civic liberation work, **profiling, transformation, and entity matching** map directly onto the pipeline: profiling is what `scripts/audit.py` partially automates; transformation is what every parser does; entity matching is the concept-catalog problem under a different name. The QA and fact-verification work is mostly downstream of liberation — useful for the consumers of the published Datasette, less useful for building it.
+
+The canonical benchmarks are useful as fixtures (or as inspiration for fixtures) when a parser handles a layout class that resembles one of them:
+
+| Benchmark | Domain | Size | Use it when |
+|---|---|---|---|
+| [PubTabNet](https://github.com/ibm-aur-nlp/PubTabNet) | Scientific paper tables | ~568k | Borrowing test cases for ruled-table extraction at scale |
+| [FinTabNet](https://developer.ibm.com/exchanges/data/all/fintabnet/) | Financial report tables (10-K, 10-Q) | ~112k | Government budget PDFs, agency annual reports |
+| [SciTSR](https://github.com/Academic-Engineering-Materials/SciTSR) | Table Structure Recognition | ~15k | Multi-page tables with merged headers |
+| [ICDAR competition corpora](https://tamirhassan.com/html/competition.html) | Mixed PDF tables | varies | Hard cases — the corpus is curated for adversarial layouts |
+| [TabFact](https://tabfact.github.io/) | Wikipedia table fact-verification | ~16.6k | Less applicable; useful only if a project ships claim-checking |
+| [WikiTableQuestions](https://ppasupat.github.io/WikiTableQuestions/) | QA over Wikipedia tables | ~2k | Downstream consumer benchmarking; not for extraction |
+| [TAT-QA](https://github.com/NExTplusplus/TAT-QA) | Hybrid table+text financial QA | ~2.8k | When the source mixes tables with narrative numbers |
+| [ToTTo](https://github.com/google-research-datasets/ToTTo) | Table-to-sentence | ~120k | Generating natural-language descriptions of rows (rarely needed in liberation) |
+| [HiTAB](https://github.com/microsoft/HiTab) | Hierarchical statistical tables | ~3.6k | Census-style cross-tabulations |
+
+The pragmatic implication for this skill stands unchanged: **rule-based first, deep-learning only when classical methods genuinely fail**, and even then prefer the open-source extractors with reproducible behavior (TableFormer, CascadeTabNet) over closed LLM table-parsers (which produce outputs you can't audit). The published reconciliation against the source's own top-line total is the test that matters; benchmark scores correlate weakly with that.
+
+For a current snapshot of the literature, tanfiona's repo is the best-maintained index. Read it once when starting a parser that will hit non-trivial layouts; skip it for tabular sources that are already mostly clean.
+
 ### Tidy data and the Wickham tradition
 
 Hadley Wickham's 2014 paper "Tidy Data" (*Journal of Statistical Software*) is the methodological anchor for the canonical storage shape used here: one row per observation, one column per variable, one cell per value. Almost every mature civic liberation project — PUDL, BoulderPublicData/Election-Results, the IPEDS pipeline — converges on this format because:
@@ -130,6 +165,7 @@ Activist / movement tradition:
 - [PDF Liberation Working Group](https://github.com/pdfliberation) on GitHub
 - [catalyst-cooperative/pudl](https://github.com/catalyst-cooperative/pudl) — multi-source ETL reference
 - [BoulderPublicData/Election-Results](https://github.com/BoulderPublicData/Election-Results) — modern small-team liberation pattern
+- [ProPublica's data-bulletproofing guide](https://github.com/propublica/guides/blob/master/data-bulletproofing.md) — the journalistic standard for vetting a dataset before publishing it
 
 Methodological / academic tradition:
 - Wirth & Hipp, *CRISP-DM: Towards a standard process model for data mining*, 2000
@@ -140,3 +176,4 @@ Methodological / academic tradition:
 - Long, Wang, Xue, Gao, Yang, Wang, Xia, *Parsing Table Structures in the Wild*, ICCV 2021
 - Wickham, *Tidy Data*, *Journal of Statistical Software*, 2014
 - Tamir Hassan's [Table Understanding Competition pages](https://tamirhassan.com/html/competition.html) — historical competition datasets and evaluation
+- [tanfiona/LLM-on-Tabular-Data-Prediction-Table-Understanding-Data-Generation](https://github.com/tanfiona/LLM-on-Tabular-Data-Prediction-Table-Understanding-Data-Generation) — actively-maintained survey of LLM × table work, with curated benchmark and outlink catalog
