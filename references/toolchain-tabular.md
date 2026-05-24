@@ -294,12 +294,8 @@ This pays off downstream: pandera schemas validate cleanly, parquet write preser
 
 ## What to write in the AGENTS.md
 
-For each tabular source the project ingests, AGENTS.md should record:
-
-- The file format(s) used by the source, including any cases where the extension lies about the actual format.
-- The encoding (often a hidden property of the source).
+- File format(s), including any cases where the extension lies about the actual format.
+- Encoding — often a hidden property of the source.
 - Sentinel values used for missing data.
-- Whether the source has a panel format / multi-row headers / merged cells, and the per-vintage strategy for handling them.
+- Panel format / multi-row headers / merged cells, with the per-vintage strategy.
 - Dtype expectations for ID-like columns (FIPS, ZIP, precinct ID, agency code).
-
-This catalog is what makes future additions tractable. When a new year's file arrives and crashes the parser, the AGENTS.md entry tells the next person (or the next AI assistant) what kind of quirk to look for first.

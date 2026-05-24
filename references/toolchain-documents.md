@@ -290,12 +290,8 @@ For very large source documents (multi-GB XML, JSON dumps), keep the original on
 
 ## What to write in the AGENTS.md
 
-For each document-source in the project, AGENTS.md should record:
-
-- **Format and structure.** "HTML, with one report per `div.report-card`; selectors target visible structural classes, not layout classes."
-- **Encoding and namespace declarations** for XML. "Uses NIEM-derived namespace `http://niem.gov/niem/core/3.0` as `nc:`; queries must register it explicitly."
-- **API pagination style.** Offset vs cursor, page size, rate limit (and where it's documented).
-- **Known structural fragility.** "Page-redesign risk; the `div.report-card` class is the load-bearing selector and is committed as a fixture in `tests/fixtures/agency_2024_page.html`."
-- **Streaming requirements** for large XML/JSONL. "Parses with `iterparse` due to ~3 GB size; do not load with `pd.read_xml` directly."
-
-This is what makes the choice of tooling durable across contributors. A new vintage of an XML feed that introduces a new namespace, or an HTML page that quietly restructures, is the kind of change the audit will surface — but only if the AGENTS.md captures the assumptions the parser was built on.
+- **Format and the load-bearing selector** (HTML) or root element / repeated record (XML, JSON).
+- **Encoding** (HTML/JSON) and **namespace declarations** (XML) — the kind of detail that's invisible until it breaks.
+- **API pagination style** — offset vs cursor, page size, rate limit, link to publisher's API docs if any.
+- **Structural fragility** — which selectors / paths are load-bearing, where the pinning fixture lives.
+- **Streaming requirements** — note when a parser uses `iterparse` or chunked JSONL because the document is too large to load.

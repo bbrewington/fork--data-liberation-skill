@@ -258,13 +258,9 @@ These interfaces are fragile and tedious; if a records request would yield the s
 
 ## What to write in the AGENTS.md
 
-For each scraped source:
-
-- **What's scraped vs what's downloaded.** "Annual SoV PDFs are fetched directly from the County Clerk's archive URL; CVR ballot data is scraped from the per-election dashboard."
-- **The ethical frame.** "Scrape rate: 1 req / 1.5 sec; identifiable User-Agent; robots.txt verified clean for `/elections/`. Public-interest data; no terms-of-service conflict; documented CORA basis for the underlying records."
-- **Auth or session requirements.** "Requires a session cookie obtained via GET to `/login`; the cookie is good for 30 minutes per session."
-- **Dynamic vs static.** "Static — `httpx` and `selectolax` suffice." Or: "Dynamic — Playwright required; the data renders after a fetch to `/api/results?eid=...`; we scrape the rendered HTML rather than the API directly because the API requires the same session cookie the rendered page sets via JS."
-- **Fragility points.** "The `div.precinct-row` selector is load-bearing; saved as a fixture in `tests/fixtures/dashboard_2024.html`."
-- **Backup paths.** "If the live scrape fails, fall back to the Wayback snapshot at `https://web.archive.org/web/2024*/...`; if that fails, CORA request is the path of last resort, documented under `docs/foia-process.md`."
-
-The point of the AGENTS.md entries is that scraping is the most fragile part of any pipeline — what works today depends on a thousand details of the site as it currently is. The catalog of assumptions, and the fixtures that pin them, are what makes the scrape maintainable when the inevitable redesign happens.
+- **Scraped vs downloaded** — which parts of the data come from a live scrape vs a bulk-download or records request.
+- **Ethical frame** — rate limit, User-Agent, robots.txt status, legal basis for the underlying records (CORA / FOIA / public-record statute).
+- **Auth / session** — cookie or token flow, expiry.
+- **Dynamic vs static** — `httpx` + parser, or Playwright (with reason).
+- **Fragility points** — the load-bearing selector(s) and the saved-page fixture that pins them.
+- **Backup paths** — Wayback snapshot URL pattern, records-request fallback.

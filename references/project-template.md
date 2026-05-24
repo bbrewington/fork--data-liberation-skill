@@ -1,6 +1,6 @@
 # Project Template: Layout, Conventions, Generated Scaffold
 
-This reference is the specification for what a liberation project's source tree looks like, what each file does, and which conventions are worth defending. The working version lives in `assets/template-project/`; this document is the prose explanation of every choice.
+This reference is the specification for what a liberation project's source tree looks like, what each file does, and which conventions are worth defending. The working version lives in a separate repo, [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), fetched by `scripts/scaffold.py` at scaffold time; this document is the prose explanation of every choice.
 
 The structure is distilled from PUDL, BoulderPublicData/Election-Results, the IPEDS pipeline, and the NPP Tax Break project. The four converged independently on most of these conventions; the few divergences are documented inline.
 
@@ -80,7 +80,7 @@ The skeleton supports three independent deployment surfaces, each playing to its
 | **Queryable data interface** | `data/processed/<project>.db` + `metadata.yaml` | Vercel / Fly / Cloud Run | `.github/workflows/publish.yml` |
 | **Bulk data distribution** | LFS-tracked `data/original/`, `*.parquet` | GitHub LFS + Releases | Manual or `release.yml` |
 
-`references/toolchain-publishing.md` covers all three in depth — including the architectural constraint that Git LFS does not work with GitHub Pages, which is why these are three workflows rather than one.
+Three references cover the three surfaces independently: [`toolchain-datasette.md`](toolchain-datasette.md), [`toolchain-quarto.md`](toolchain-quarto.md), [`toolchain-lfs.md`](toolchain-lfs.md). The architectural constraint that Git LFS does not work with GitHub Pages — which is why these are three workflows rather than one — is documented in the LFS reference.
 
 ## Top-level files
 
@@ -207,7 +207,7 @@ docs/_freeze/**/*.png  filter=lfs diff=lfs merge=lfs -text
 docs/_freeze/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
 ```
 
-Contributors must `git lfs install` once per machine before cloning. CI workflows that need the raw data must use `actions/checkout@v4` with `lfs: true`. See `references/toolchain-publishing.md` for the per-plan size limits and the architectural constraint that LFS does not work with GitHub Pages.
+Contributors must `git lfs install` once per machine before cloning. CI workflows that need the raw data must use `actions/checkout@v4` with `lfs: true`. See `references/toolchain-lfs.md` for the per-plan size limits and the architectural constraint that LFS does not work with GitHub Pages.
 
 ### `_quarto.yml`
 
@@ -239,7 +239,7 @@ execute:
   freeze: auto
 ```
 
-See `references/toolchain-publishing.md` for the full Quarto setup, including the `_freeze` pattern, the GH Action workflow, and the one-time `quarto publish gh-pages` local setup that creates the branch.
+See `references/toolchain-quarto.md` for the full Quarto setup, including the `_freeze` pattern, the GH Action workflow, and the one-time `quarto publish gh-pages` local setup that creates the branch.
 
 ## `scripts/` modules
 
@@ -342,7 +342,7 @@ uv run python -m scripts.publish serve       # build and serve Datasette locally
 uv run python -m scripts.publish deploy      # build and `datasette publish vercel`
 ```
 
-Reproducible: same input CSV produces an identical `.db` file. See `references/toolchain-publishing.md` for the full Datasette toolchain and the publishing options spectrum.
+Reproducible: same input CSV produces an identical `.db` file. See `references/toolchain-datasette.md` for the full Datasette toolchain and the publishing options spectrum.
 
 ### `pipeline.py` — end-to-end driver
 
@@ -458,13 +458,13 @@ Scheduled `discover → fetch → clean --fail-on-empty → audit`, then PR-on-n
 
 Triggered when the refresh PR merges (i.e., on push to `main` that touches `data/processed/**`). Rebuilds `data/processed/<project>.db` from the canonical CSV via `scripts/publish.py build`, then runs `datasette publish vercel|fly|cloudrun` to deploy the updated database. Requires the deploy provider's auth token in repository secrets (`VERCEL_TOKEN`, `FLY_API_TOKEN`, or GCP credentials).
 
-Template ships as `publish.yml.disabled`; rename and configure the provider once the first manual `datasette publish` succeeds locally. See `references/toolchain-publishing.md`.
+Template ships as `publish.yml.disabled`; rename and configure the provider once the first manual `datasette publish` succeeds locally. See `references/toolchain-datasette.md`.
 
 ### `gh-pages.yml` (opt-in)
 
 Renders the Quarto documentation site to GitHub Pages on every push to `main` that touches `docs/`, `_quarto.yml`, or `data/processed/**`. Uses `quarto-dev/quarto-actions/setup@v2` + `publish@v2` with `target: gh-pages`. Requires `permissions: contents: write` to push to the `gh-pages` branch; the branch must be created first by running `quarto publish gh-pages` locally once.
 
-Template ships as `gh-pages.yml.disabled`. Enable once the project has a Quarto site authored under `docs/` and the one-time local setup is done. See `references/toolchain-publishing.md` for the Quarto + Pages section and the LFS architectural caveat.
+Template ships as `gh-pages.yml.disabled`. Enable once the project has a Quarto site authored under `docs/` and the one-time local setup is done. See `references/toolchain-quarto.md` for the workflow itself and `references/toolchain-lfs.md` for the LFS architectural caveat.
 
 ## `data/` directory discipline
 

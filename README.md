@@ -21,9 +21,10 @@ The skill triggers on phrases like "data liberation," "PDF extraction," "tidy da
 data-liberation-skill/
 ├── SKILL.md           # Skill entry point (loaded on activation)
 ├── references/        # Toolchain + methodology docs (loaded on demand)
-├── scripts/           # scaffold.py and other executable helpers
-└── assets/            # Working template-project to copy from
+└── scripts/           # scaffold.py — fetches the template repo and renders it
 ```
+
+The working project template lives in a separate repo, [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), pinned to a tagged release. `scripts/scaffold.py` fetches it at scaffold time so the skill repo stays small and an agent doesn't burn context on files it shouldn't be reading directly.
 
 ## Installation
 
