@@ -84,11 +84,14 @@ jobs:
 
       - name: Assert no unresolved placeholders
         run: |
-          if grep -rE '\{\{ *[a-z_]+ *\}\}' /tmp/e2e-project; then
-            echo "::error::Unresolved {{ placeholder }} tokens in rendered output"
+          # Exclude .github/workflows/ — those files (this one included) legitimately
+          # discuss the placeholder syntax in comments and error messages and would
+          # produce false positives.
+          if grep -rE '\{\{ *[a-z_]+ *\}\}' /tmp/e2e-project --exclude-dir=.github; then
+            echo "::error::Unresolved placeholder tokens in rendered output"
             exit 1
           fi
-          echo "✓ All placeholders resolved"
+          echo "All placeholders resolved"
 
       - name: Sync rendered project's dependencies
         working-directory: /tmp/e2e-project
