@@ -395,11 +395,7 @@ For very mature pipelines with established quality, some projects relax this to 
 
 ## What to write in the AGENTS.md
 
-For each pipeline, AGENTS.md should record:
-
-- **Refresh cadence.** Annual, monthly, on-demand. The cron expression, if `refresh.yml` is enabled, and which day of the publication cycle it trails.
-- **Discovery surface.** What `discover.py` checks — the URL pattern, the index page, the year range. If a publisher changes their index page, this is where the maintainer looks first.
-- **Reconcile scope (if enabled).** Which authoritative totals are checked, in which sources, against which originals. The "Known mismatches" section, with each entry's explanation.
-- **Audit invariants worth knowing.** "Source X should always be non-empty for vintages 2010 onward." "Null rate on `precinct` should be ≤ 0.01 — anything higher is a regression." The audit summary alone can't tell a reviewer what *should* be true; AGENTS.md is where the institutional knowledge lives.
-
-This is the catalog that makes recurring refresh sustainable. The cron is the easy part; knowing what counts as "looks right" is the work.
+- **Refresh cadence** — the cron expression (if `refresh.yml` is enabled) and which day of the publication cycle it trails.
+- **Discovery surface** — what `discover.py` checks per source (URL pattern, index page, year range). First place to look when a publisher redesigns.
+- **Reconcile scope** (if enabled) — which authoritative totals are checked against which originals, plus a "Known mismatches" subsection with each entry's explanation.
+- **Audit invariants** the summary alone can't express, e.g., "source X should always be non-empty for vintages ≥ 2010" or "null rate on `precinct` must stay ≤ 0.01."

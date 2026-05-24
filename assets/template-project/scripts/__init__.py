@@ -1,8 +1,0 @@
-"""{{ project_name }} pipeline.
-
-{{ description }}
-
-Run via `uv run python -m scripts.pipeline` (or any subcommand thereof).
-"""
-
-__version__ = "0.1.0"

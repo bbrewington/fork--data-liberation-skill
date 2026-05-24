@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Scaffold a new data-liberation project from the bundled template.
+"""Scaffold a new data-liberation project from the upstream template.
 
-Copies `assets/template-project/` to a destination path and substitutes
-Jinja-style placeholders. Zero dependencies — uses only the standard
-library so this runs in any Python ≥3.10 environment.
+Fetches the [data-liberation-template](https://github.com/brianckeegan/data-liberation-template)
+repo (pinned to a tagged release), copies it to a destination path, and
+substitutes Jinja-style placeholders. Zero non-stdlib dependencies — uses
+`git` from PATH plus the standard library.
 
 Usage
 -----
@@ -17,6 +18,9 @@ Usage
 
 Run with `--dry-run` to see what would be written without touching disk.
 
+To test edits to the template repo locally, pass `--template-repo /path/to/local/clone`
+(any local directory works; if it's a git repo we'll skip the network).
+
 The placeholder set is documented in `references/project-template.md`
 ("Slot-fills used by `scaffold.py`").
 """
@@ -27,10 +31,11 @@ import argparse
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-TEMPLATE_DIR = HERE.parent / "assets" / "template-project"
+DEFAULT_TEMPLATE_REPO = "https://github.com/brianckeegan/data-liberation-template.git"
+DEFAULT_TEMPLATE_VERSION = "v0.1.0"
 
 # File suffixes we treat as text (substitute placeholders). Anything else is
 # copied byte-for-byte.
@@ -42,6 +47,10 @@ TEXT_SUFFIXES = {
 }
 # Files we always treat as text by exact name (no suffix or unusual case).
 TEXT_NAMES = {".gitignore", ".gitkeep", ".gitattributes", "AGENTS.md", "README.md"}
+
+# Files in the template repo that document the template *itself* and should
+# not be copied into scaffolded projects.
+SKIP_FILES = {"TEMPLATE.md"}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -63,6 +72,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "Falls back to `git config user.name` if absent.")
     p.add_argument("--consumers", default="pandas",
                    help="Comma-separated consumer stacks (e.g. 'pandas,R,polars').")
+    p.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO,
+                   help=f"Git URL or local path of the template. "
+                        f"Default: {DEFAULT_TEMPLATE_REPO}")
+    p.add_argument("--template-version", default=DEFAULT_TEMPLATE_VERSION,
+                   help=f"Tag, branch, or commit of the template to fetch. "
+                        f"Default: {DEFAULT_TEMPLATE_VERSION}. Ignored for local paths.")
     p.add_argument("--dry-run", action="store_true",
                    help="Print planned writes without touching disk.")
     return p.parse_args(argv)
@@ -141,6 +156,43 @@ def substitute(text: str, placeholders: dict[str, str]) -> str:
     return out
 
 
+def fetch_template(repo: str, version: str, scratch: Path) -> Path:
+    """Materialize the template into `scratch` and return the root path.
+
+    If `repo` is a local directory, use it in place (no clone). Otherwise
+    `git clone --depth 1 --branch <version>` into `scratch`.
+    """
+    local = Path(repo).expanduser()
+    if local.exists() and local.is_dir():
+        if not (local / "scripts").exists():
+            raise SystemExit(
+                f"--template-repo {repo} exists but doesn't look like a template "
+                f"(no scripts/ directory). Wrong path?"
+            )
+        return local
+
+    if shutil.which("git") is None:
+        raise SystemExit(
+            "git not found on PATH. Install git, or pass --template-repo with a "
+            "local path to a checked-out template."
+        )
+
+    target = scratch / "template"
+    print(f"Fetching template {repo} @ {version} …")
+    result = subprocess.run(
+        ["git", "clone", "--depth", "1", "--branch", version, repo, str(target)],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            f"git clone failed (exit {result.returncode}).\n"
+            f"stderr:\n{result.stderr}"
+        )
+    # Strip the .git directory so it doesn't leak into the scaffolded project.
+    shutil.rmtree(target / ".git", ignore_errors=True)
+    return target
+
+
 def walk_and_write(
     src: Path,
     dst: Path,
@@ -153,6 +205,11 @@ def walk_and_write(
     """
     written: list[Path] = []
     for entry in src.rglob("*"):
+        # Skip the .git directory if --template-repo is a live git checkout.
+        if ".git" in entry.parts:
+            continue
+        if entry.name in SKIP_FILES:
+            continue
         rel = entry.relative_to(src)
         # Substitute placeholders in path components too — lets the
         # template support filenames like `{{ project_slug }}.csv`.
@@ -188,14 +245,6 @@ def main(argv: list[str] | None = None) -> int:
     placeholders = build_placeholders(args)
     dest = args.dest.expanduser().resolve()
 
-    if not TEMPLATE_DIR.exists():
-        sys.stderr.write(
-            f"Template directory not found: {TEMPLATE_DIR}\n"
-            f"This script must run from a checked-out copy of the "
-            f"data-liberation skill, where assets/template-project/ exists.\n"
-        )
-        return 1
-
     if dest.exists():
         if any(dest.iterdir()):
             sys.stderr.write(
@@ -207,17 +256,22 @@ def main(argv: list[str] | None = None) -> int:
         if not args.dry_run:
             dest.mkdir(parents=True)
 
-    print(f"Scaffolding {args.name}")
-    print(f"  → {dest}")
-    print(f"  slug:      {placeholders['project_slug']}")
-    print(f"  author:    {placeholders['author']}")
-    print(f"  owner:     {placeholders['owner']}")
-    print(f"  consumers: {placeholders['consumer_stack']}")
-    if args.dry_run:
-        print("  (dry-run; no files written)")
-    print()
+    with tempfile.TemporaryDirectory(prefix="data-liberation-template-") as scratch_str:
+        scratch = Path(scratch_str)
+        template_root = fetch_template(args.template_repo, args.template_version, scratch)
 
-    written = walk_and_write(TEMPLATE_DIR, dest, placeholders, args.dry_run)
+        print(f"Scaffolding {args.name}")
+        print(f"  → {dest}")
+        print(f"  slug:      {placeholders['project_slug']}")
+        print(f"  author:    {placeholders['author']}")
+        print(f"  owner:     {placeholders['owner']}")
+        print(f"  consumers: {placeholders['consumer_stack']}")
+        print(f"  template:  {args.template_repo} @ {args.template_version}")
+        if args.dry_run:
+            print("  (dry-run; no files written)")
+        print()
+
+        written = walk_and_write(template_root, dest, placeholders, args.dry_run)
 
     if args.dry_run:
         print(f"\nWould write {len(written)} files.")

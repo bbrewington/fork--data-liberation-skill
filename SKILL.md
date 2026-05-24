@@ -9,7 +9,7 @@ A skill for generating Python data pipelines that liberate structured data from 
 
 ## What this skill encodes
 
-- **A project template.** Immutable originals → processed tidy data → audit reports → lookups (crosswalks). Bootstrap from single-source, structured for multi-source from day one. See [`references/project-template.md`](references/project-template.md) and the working example in [`assets/template-project/`](assets/template-project/).
+- **A project template.** Immutable originals → processed tidy data → audit reports → lookups (crosswalks). Bootstrap from single-source, structured for multi-source from day one. See [`references/project-template.md`](references/project-template.md). The working example lives in a separate repo, [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), and is fetched on demand by `scripts/scaffold.py` — read it only if you genuinely need to inspect what the scaffolder produces.
 - **Toolchain decision trees.** When to use pdfplumber vs. camelot vs. tesseract; how to choose between requests + BeautifulSoup, headless browser, and archived snapshots; how to read XLSX / CSV / Parquet / databases and normalize HTML / XML / JSON into tabular form. References in [`toolchain-pdf.md`](references/toolchain-pdf.md), [`toolchain-tabular.md`](references/toolchain-tabular.md), [`toolchain-documents.md`](references/toolchain-documents.md), [`toolchain-scraping.md`](references/toolchain-scraping.md).
 - **Documentation conventions.** Data dictionaries, harmonization crosswalks, per-extract provenance, filter-and-pivot recipes for tidy ↔ wide. See [`data-modeling.md`](references/data-modeling.md).
 - **Auditing patterns.** Discovery of new upstream sources; reconciliation of processed data against original totals. See [`discovery-and-audit.md`](references/discovery-and-audit.md).
@@ -56,7 +56,7 @@ Write a one-page Survey note (it becomes the seed of the project README). Decide
 
 ### 2. Scaffold — set up the project
 
-**New project:** Read [`references/project-template.md`](references/project-template.md) and the working files in [`assets/template-project/`](assets/template-project/). Copy and adapt — do not invent a parallel structure. The skeleton (with exact directory names) is:
+**New project:** Run `scripts/scaffold.py` (it fetches the template from [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), renders the placeholders, and writes the project). Read [`references/project-template.md`](references/project-template.md) for the prose explanation of what each file in the skeleton does and why. Do not invent a parallel structure. The skeleton (with exact directory names) is:
 
 ```
 project-name/
@@ -109,7 +109,7 @@ Match the input type to the toolchain:
 | Database | `sqlalchemy` + `pandas.read_sql` | `duckdb` for ad-hoc | [`toolchain-tabular.md`](references/toolchain-tabular.md) |
 | Web scrape (recurring) | `requests` + `BeautifulSoup` + idempotent cache | Wayback Machine archive | [`toolchain-scraping.md`](references/toolchain-scraping.md) |
 
-For *publishing* the liberated dataset — turning the processed CSV into a queryable web interface with a JSON API — see [`toolchain-publishing.md`](references/toolchain-publishing.md) (Datasette + sqlite-utils).
+For *publishing* the liberated dataset — turning the processed CSV into a queryable web interface with a JSON API — see [`toolchain-datasette.md`](references/toolchain-datasette.md) (Datasette + sqlite-utils).
 
 Always: capture a per-extract manifest entry (input file SHA256, page range or URL, tool + version, timestamp, row count) appended to `data/processed/provenance.csv`. This is the sidecar — joined onto the data by `(source, vintage)` rather than carried on every row. See [`data-modeling.md`](references/data-modeling.md#provenance).
 
@@ -138,9 +138,9 @@ Once the pipeline runs end-to-end:
 
 ### 6. Publish — make the dataset queryable
 
-The processed CSV is the deliverable. A complete liberation project ships *three* deployment surfaces — the **queryable data interface** (Datasette), the **documentation site** (Quarto on GitHub Pages), and the **bulk distribution layer** for large files (Git LFS + GitHub Releases). Each plays to its strengths; together they cover the CRISP-DM deployment phase the workflow targets. See [`references/toolchain-publishing.md`](references/toolchain-publishing.md) for the full toolchain and architectural rationale.
+The processed CSV is the deliverable. A complete liberation project ships *three* deployment surfaces — the **queryable data interface** ([`toolchain-datasette.md`](references/toolchain-datasette.md)), the **documentation site** ([`toolchain-quarto.md`](references/toolchain-quarto.md)), and the **bulk distribution layer** for large files ([`toolchain-lfs.md`](references/toolchain-lfs.md)). Each plays to its strengths; together they cover the CRISP-DM deployment phase the workflow targets. The three are split so an agent working in just one layer only pays the context cost for that one.
 
-- **Build SQLite (`scripts/publish.py build`)** — Converts the processed CSV + `provenance.csv` into a single SQLite file via [`sqlite-utils`](https://sqlite-utils.datasette.io/): composite primary key, indexed facetable columns, optional full-text search on narrative columns, foreign key from data → provenance. Generates `data/processed/metadata.yaml` from `docs/data-dictionary.md` to keep the two in sync.
+- **Build SQLite (`scripts/publish.py build`)** — Converts the processed CSV + `provenance.csv` into a single SQLite file via [`sqlite-utils`](https://sqlite-utils.datasette.io/): composite primary key, indexed facetable columns, optional full-text search on narrative columns, foreign key from data → provenance. Generates `data/processed/metadata.yaml` from `docs/data-dictionary.md` to keep the two in sync. See [`toolchain-datasette.md`](references/toolchain-datasette.md).
 - **Deploy Datasette (`scripts/publish.py deploy`)** — `datasette publish vercel|cloudrun|fly` ships the SQLite + metadata as a public read-only [Datasette](https://datasette.io/) instance with SQL editor, faceting, JSON API, and per-table/per-column documentation. For small datasets, [Datasette Lite](https://lite.datasette.io/) runs the same database in the browser with no server. The "Baked Data" architecture (database built fresh on every deploy, no application-layer writes) is the canonical shape for civic projects.
 - **Document with [Quarto](https://quarto.org/) on [GitHub Pages](https://quarto.org/docs/publishing/github-pages.html)** — `.qmd` files in `docs/` (Markdown with executable code blocks) become the methodology, tutorials, and long-form data dictionary site. The `gh-pages.yml` workflow uses `quarto-dev/quarto-actions/publish@v2` with `target: gh-pages` to render and deploy on every push. Datasette serves the *data interface*; Quarto serves the *prose about how to use it*.
 - **Track large files with [Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage)** — Multi-gigabyte source PDFs, ZIP archives, and large Parquet outputs sit in LFS via `.gitattributes` patterns. Per-file limits are 2–5 GB depending on GitHub plan. **Architectural constraint: LFS does not work with GitHub Pages**, so the Quarto site links out to Datasette and to GitHub Releases for full-file downloads rather than embedding LFS-tracked data directly.
@@ -155,7 +155,7 @@ Commit. The pipeline is now reproducible *and* queryable *and* documented: anyon
 For a new project the workflow is:
 
 1. Read the user's source (the PDF, page, or spreadsheet) and produce the Survey notes inline.
-2. Read [`references/project-template.md`](references/project-template.md) and [`assets/template-project/`](assets/template-project/) for the skeleton.
+2. Run `python scripts/scaffold.py --dest <path> --name <kebab-case> --description <…> --author <…> --owner <github-username>` — it fetches [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template) at the pinned version, copies it into `<path>`, and substitutes placeholders. Read [`references/project-template.md`](references/project-template.md) for the per-file rationale.
 3. Write the project files (README, pyproject.toml, schema.py, sources.py, an initial parser, AGENTS.md) to the user's working directory — not to this skill's `assets/`. Adapt placeholder names (`PROJECT_NAME`, `SOURCE_NAME`, etc.) to the actual project.
 4. Suggest the user run `uv sync && uv run pytest` to verify the scaffold; then `uv run python -m scripts.pipeline` to attempt a first end-to-end run on a single sample file.
 5. Iterate: each new vintage or quirk becomes a new parser file or a new test case.
@@ -185,32 +185,27 @@ For a new project the workflow is:
 - [`references/toolchain-tabular.md`](references/toolchain-tabular.md) — XLSX (including panel-format), CSV, Parquet, databases.
 - [`references/toolchain-documents.md`](references/toolchain-documents.md) — HTML, XML, JSON → tidy; `pandas.json_normalize` patterns.
 - [`references/toolchain-scraping.md`](references/toolchain-scraping.md) — post-API web scraping per the CU Info Science *Web Data Science Book*: ethics, archives, protocols, dynamic pages, government data.
-- [`references/toolchain-publishing.md`](references/toolchain-publishing.md) — three publishing layers: Datasette + sqlite-utils for the queryable data interface (with metadata, canned queries, plugins, the "Baked Data" pattern, deploy targets, and Datasette Agent); Quarto + GitHub Pages for documentation, tutorials, and the long-form data dictionary; Git LFS for bulk data distribution, with the per-plan size limits and the architectural caveat that LFS does not work with GitHub Pages.
+- [`references/toolchain-datasette.md`](references/toolchain-datasette.md) — the queryable data interface: sqlite-utils, metadata, canned queries, plugins, the "Baked Data" pattern, deploy targets, Datasette Agent.
+- [`references/toolchain-quarto.md`](references/toolchain-quarto.md) — the documentation site: `_quarto.yml`, `docs/*.qmd`, `quarto publish gh-pages`, the freeze cache, GitHub Actions.
+- [`references/toolchain-lfs.md`](references/toolchain-lfs.md) — bulk distribution via Git LFS: per-plan size limits, the architectural caveat that LFS does not work with GitHub Pages, CI bandwidth posture.
 - [`references/project-template.md`](references/project-template.md) — full skeleton spec; what each file does and why.
 - [`references/data-modeling.md`](references/data-modeling.md) — Wickham-tidy, data dictionaries, concept catalogs / crosswalks, provenance, pandera validation, filter-pivot recipes.
 - [`references/discovery-and-audit.md`](references/discovery-and-audit.md) — `discover.py` (find new sources upstream) and `reconcile.py` (verify against originals).
 
-## What lives in `assets/template-project/`
+## The template repo
 
-A complete, working example project that scaffolds to a minimal but real pipeline. Read these files when generating a new project — they are the source of truth for conventions and can be lifted with adaptation:
+The working template lives at [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), pinned to a tagged release that pairs with this skill (`v0.1.0` of one matches `v0.1.0` of the other). `scripts/scaffold.py` fetches it on demand; you should not normally need to read it. What it contains, briefly:
 
-- `pyproject.toml` — uv-managed; Python 3.11+; core deps pandas, pandera, pyarrow, requests, requests-cache, tenacity, structlog, tabulate; optional extras for `pdf` (pdfplumber, pypdf, camelot-py), `ocr` (pytesseract, pdf2image), `scrape` (httpx, selectolax, playwright), `tabular` (openpyxl, xlrd, pyreadstat), and `publish` (datasette, sqlite-utils, datasette-publish-vercel)
-- `scripts/schema.py` — `LONG_COLUMNS`, pandera `CanonicalLong`, `normalize_long` (model: IPEDS pipeline)
-- `scripts/sources.py` — `Source` ABC and `Artifact` dataclass with the `discover` + `ingest` contract (model: BoulderPublicData/Election-Results). The `SOURCES` registry that maps slugs to `Source` subclasses lives in `scripts/config.py`.
-- `scripts/pipeline.py` — argparse CLI: `discover | fetch | clean | audit | reconcile | publish | run`
-- `scripts/audit.py` — summary stats, `docs/variables.{md,csv}` generation, `record_extraction_error`
-- `scripts/publish.py` — CSV + provenance → SQLite via sqlite-utils; emits `metadata.yaml` from `docs/data-dictionary.md`; `build | serve | deploy` subcommands
-- `scripts/parsers/` — per-source parser stub; each module exposes `parse(path) -> pd.DataFrame`
-- `_quarto.yml` + `docs/index.qmd` — Quarto site seed; rendered to GitHub Pages by `gh-pages.yml`
-- `.gitattributes` — Git LFS rules for `data/original/**/*.pdf`, `data/processed/*.parquet`, etc.
-- `AGENTS.md` — architecture brief, gotcha list, "how to add a new source" guide, deployment surface catalog (Datasette URL + Quarto URL + Releases)
-- `docs/data-dictionary.md` and `docs/filter-pivot-recipes.md` — hand-maintained reference content (the Quarto site renders these alongside `.qmd` pages)
-- `tests/test_schema.py` — schema-validation tests; per-parser tests use checked-in fixtures
-- `.github/workflows/tests.yml` — opt-in CI; runs pytest on every push and PR
-- `.github/workflows/refresh.yml.disabled` — opt-in cron-driven data refresh + PR
-- `.github/workflows/publish.yml.disabled` — opt-in: build SQLite + datasette publish on merge
-- `.github/workflows/gh-pages.yml.disabled` — opt-in: render Quarto site to gh-pages on merge
-- `README.md` — quickstart, data summary, movement context, links to data dictionary, Datasette URL, Pages URL
+- `pyproject.toml` — uv-managed; Python 3.11+; core deps pandas, pandera, pyarrow, requests, requests-cache, tenacity, structlog, tabulate; optional extras for `pdf`, `ocr`, `scrape`, `tabular`, `publish`.
+- `scripts/{schema,sources,config,fetch,discover,clean,audit,reconcile,publish,pipeline}.py` — one-responsibility modules connected by `scripts/pipeline.py`'s argparse CLI (`discover | fetch | clean | audit | reconcile | publish | run`).
+- `scripts/concepts.py` — optional cross-source harmonization (single-source projects leave it unused).
+- `_quarto.yml` + `docs/*.qmd` — Quarto site seed.
+- `.gitattributes` — Git LFS rules for source PDFs / large Parquet / SQLite.
+- `AGENTS.md`, `README.md`, `docs/data-dictionary.md`, `docs/filter-pivot-recipes.md` — placeholder-filled documentation the scaffolder personalizes.
+- `tests/test_schema.py` + `tests/conftest.py` — baseline schema-drift tests.
+- `.github/workflows/tests.yml` — on by default. `refresh.yml.disabled`, `publish.yml.disabled`, `gh-pages.yml.disabled` — opt-in.
+
+For why each piece is shaped this way, read [`references/project-template.md`](references/project-template.md). To inspect a rendered project, run `scripts/scaffold.py --dry-run` or scaffold into a temp dir.
 
 ## Conventions worth defending
 

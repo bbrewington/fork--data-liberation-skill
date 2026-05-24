@@ -253,12 +253,8 @@ Spend the survey phase on these specifically. The cost of revisiting them after 
 
 ## What to write in the AGENTS.md
 
-Document, for the project as a whole:
-
-- **The chosen unit of observation** and why. (E.g., "Row per `precinct × contest × candidate × vintage`; alternative would be per-ballot, ruled out because the Statement of Vote PDFs are precinct-aggregated.")
-- **The vintage convention.** What string format vintages take, and the granularity (year, year-quarter, election-date).
-- **Concept catalog status.** "Single-source; no concept catalog needed" or "Concepts harmonize IPEDS + CDHE; see `scripts/concepts.py` — three of the five concepts have known cross-source caveats."
-- **Provenance scope.** Per-extract sidecar at `data/processed/provenance.csv`; (note any per-row provenance columns for OCR-fragile parsers).
-- **Validation surface.** Which sources have parser-level pytest fixtures; which don't yet.
-
-This is what the next contributor reads to know whether they're adding a clean fourth source or stepping into a multi-source harmonization debate.
+- **Unit of observation** and why this one was chosen over the alternatives.
+- **Vintage convention** — string format and granularity (year, year-quarter, election-date).
+- **Concept catalog status** — none / single-source, or which concepts harmonize across which sources with which caveats.
+- **Provenance scope** — per-extract sidecar by default; note any per-row provenance columns for OCR-fragile parsers.
+- **Validation surface** — which parsers have pytest fixtures.

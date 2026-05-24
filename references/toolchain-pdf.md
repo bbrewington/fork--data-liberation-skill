@@ -252,11 +252,6 @@ A few patterns this skeleton illustrates that you should keep:
 
 ## What to write in the AGENTS.md
 
-When a project uses one of these tools, AGENTS.md should record:
-
-- Which tool is used for which source/vintage.
-- Why — what classifier-level fact about the input drove the choice.
-- Any non-default configuration (table settings, OCR PSM, character whitelist).
-- Known per-vintage quirks (e.g., "2007 SoV has merged-cell footers that pdfplumber's default detector treats as a 4-column table; we crop above the footer first").
-
-This is what makes the choice durable across contributors and AI assistants.
+- Which tool (pdfplumber / camelot / tesseract) for which source × vintage, and the classifier fact that drove the choice.
+- Any non-default configuration — table_settings, OCR PSM, character whitelist.
+- Per-vintage quirks (merged cells, footnoted rows, multi-page table headers, OCR-degraded years).
