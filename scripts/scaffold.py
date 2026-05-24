@@ -28,14 +28,27 @@ The placeholder set is documented in `references/project-template.md`
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 DEFAULT_TEMPLATE_REPO = "https://github.com/brianckeegan/data-liberation-template.git"
-DEFAULT_TEMPLATE_VERSION = "v0.1.0"
+
+# Pinned by commit SHA, not by tag — tags on GitHub are mutable, and a force-push
+# to a tag on the template repo would silently change scaffolded output for every
+# user on this version of the skill. SHA pinning makes the bytes reproducible.
+#
+# The human-readable tag this corresponds to lives in DEFAULT_TEMPLATE_TAG below
+# (for messaging only). See RELEASING.md for the bump procedure when cutting a
+# new skill release.
+DEFAULT_TEMPLATE_VERSION = "8e429e0465370de37a77b95b0816ff8e9fce95c0"
+DEFAULT_TEMPLATE_TAG = "v0.1.0"
 
 # File suffixes we treat as text (substitute placeholders). Anything else is
 # copied byte-for-byte.
@@ -77,7 +90,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         f"Default: {DEFAULT_TEMPLATE_REPO}")
     p.add_argument("--template-version", default=DEFAULT_TEMPLATE_VERSION,
                    help=f"Tag, branch, or commit of the template to fetch. "
-                        f"Default: {DEFAULT_TEMPLATE_VERSION}. Ignored for local paths.")
+                        f"Default: {DEFAULT_TEMPLATE_TAG} "
+                        f"(commit {DEFAULT_TEMPLATE_VERSION[:12]}). "
+                        f"Ignored for local paths.")
     p.add_argument("--dry-run", action="store_true",
                    help="Print planned writes without touching disk.")
     return p.parse_args(argv)
@@ -156,11 +171,52 @@ def substitute(text: str, placeholders: dict[str, str]) -> str:
     return out
 
 
+_GITHUB_URL_RE = re.compile(
+    r"^(?:https?://github\.com/|git@github\.com:)"
+    r"(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$"
+)
+
+
+def _parse_github_repo(url: str) -> tuple[str, str] | None:
+    """Extract (owner, repo) from a GitHub HTTPS or SSH URL; None if not GitHub."""
+    m = _GITHUB_URL_RE.match(url)
+    return (m["owner"], m["repo"]) if m else None
+
+
+def _git_clone(repo: str, version: str, target: Path) -> None:
+    """Fallback for non-GitHub remotes. Requires `git` on PATH."""
+    if shutil.which("git") is None:
+        raise SystemExit(
+            f"--template-repo {repo} is not a GitHub URL, and git is not on PATH "
+            f"to fall back to. Install git, or pass --template-repo with a local "
+            f"path to a checked-out template."
+        )
+    # For non-GitHub remotes we can't reliably fetch a SHA via shallow clone,
+    # so do a full clone and check out. Tradeoff: slower; acceptable for the
+    # uncommon non-GitHub case.
+    result = subprocess.run(
+        ["git", "clone", repo, str(target)], capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"git clone failed (exit {result.returncode}):\n{result.stderr}")
+    co = subprocess.run(
+        ["git", "-C", str(target), "checkout", version],
+        capture_output=True, text=True, check=False,
+    )
+    if co.returncode != 0:
+        raise SystemExit(f"git checkout {version} failed:\n{co.stderr}")
+    shutil.rmtree(target / ".git", ignore_errors=True)
+
+
 def fetch_template(repo: str, version: str, scratch: Path) -> Path:
     """Materialize the template into `scratch` and return the root path.
 
-    If `repo` is a local directory, use it in place (no clone). Otherwise
-    `git clone --depth 1 --branch <version>` into `scratch`.
+    Three paths:
+      * `repo` is a local directory → use it in place, no fetch.
+      * `repo` is a GitHub URL → download a tarball of `version` from
+        `codeload.github.com`. Works with tag, branch, OR commit SHA. No
+        git dependency.
+      * `repo` is any other Git URL → fall back to `git clone` + checkout.
     """
     local = Path(repo).expanduser()
     if local.exists() and local.is_dir():
@@ -171,26 +227,45 @@ def fetch_template(repo: str, version: str, scratch: Path) -> Path:
             )
         return local
 
-    if shutil.which("git") is None:
-        raise SystemExit(
-            "git not found on PATH. Install git, or pass --template-repo with a "
-            "local path to a checked-out template."
-        )
+    gh = _parse_github_repo(repo)
+    if gh is None:
+        target = scratch / "template"
+        print(f"Fetching template {repo} @ {version} (git clone)…")
+        _git_clone(repo, version, target)
+        return target
 
-    target = scratch / "template"
-    print(f"Fetching template {repo} @ {version} …")
-    result = subprocess.run(
-        ["git", "clone", "--depth", "1", "--branch", version, repo, str(target)],
-        capture_output=True, text=True, check=False,
-    )
-    if result.returncode != 0:
+    owner, repo_name = gh
+    tarball_url = f"https://codeload.github.com/{owner}/{repo_name}/tar.gz/{version}"
+    print(f"Fetching template {owner}/{repo_name} @ {version[:12]}…")
+
+    tarball_path = scratch / "template.tar.gz"
+    try:
+        with urllib.request.urlopen(tarball_url, timeout=60) as resp:
+            tarball_path.write_bytes(resp.read())
+    except urllib.error.HTTPError as exc:
         raise SystemExit(
-            f"git clone failed (exit {result.returncode}).\n"
-            f"stderr:\n{result.stderr}"
+            f"Tarball fetch failed (HTTP {exc.code}): {tarball_url}\n"
+            f"Check that the ref `{version}` exists on {owner}/{repo_name}."
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise SystemExit(f"Tarball fetch failed (network): {exc.reason}") from exc
+
+    extract_dir = scratch / "extracted"
+    extract_dir.mkdir()
+    with tarfile.open(tarball_path) as tf:
+        # PEP 706 safe extraction (Python 3.12+); fall back to plain extractall
+        # on 3.11. The risk profile (we know the source) makes either acceptable.
+        try:
+            tf.extractall(extract_dir, filter="data")
+        except TypeError:
+            tf.extractall(extract_dir)
+
+    children = [c for c in extract_dir.iterdir() if c.is_dir()]
+    if len(children) != 1:
+        raise SystemExit(
+            f"Unexpected tarball layout under {extract_dir}: {[c.name for c in children]}"
         )
-    # Strip the .git directory so it doesn't leak into the scaffolded project.
-    shutil.rmtree(target / ".git", ignore_errors=True)
-    return target
+    return children[0]
 
 
 def walk_and_write(
