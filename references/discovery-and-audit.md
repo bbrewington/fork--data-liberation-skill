@@ -1,0 +1,405 @@
+# Discovery and Audit: Finding Upstream Changes and Verifying Against the Truth
+
+The three "watchful" steps of a liberation pipeline. `discover.py` finds what's available upstream; `audit.py` reports on what came in; `reconcile.py` (opt-in) verifies that the processed output matches authoritative top-line totals from the original. Together, they are what makes a pipeline *trustworthy* rather than just *runnable*.
+
+The patterns here are distilled from BoulderPublicData/Election-Results (where `reconcile.py` originated) and the IPEDS pipeline (which formalized the `discover.py` self-refresh).
+
+## Discovery
+
+**Discovery's job:** answer the question "is there a vintage we don't have yet?" without downloading anything. A correctly-implemented `discover()` is cheap, idempotent, and a precondition for any recurring-refresh workflow.
+
+Two patterns, depending on how the upstream publishes.
+
+### Static-list discovery
+
+For sources where new vintages appear at predictable URLs — say, an agency that publishes `https://example.gov/annual-report/2024.pdf`, `…/2025.pdf` annually — the `discover()` implementation is a static URL pattern plus a year range:
+
+```python
+# scripts/sources.py (excerpt)
+from datetime import datetime
+from scripts.sources import Source, Artifact
+
+
+class AgencyAnnualReport(Source):
+    name = "agency_annual"
+    label = "Example Agency Annual Report"
+    URL_PATTERN = "https://example.gov/annual-report/{year}.pdf"
+
+    def discover(self):
+        current = datetime.now().year
+        for year in range(2010, current + 1):
+            yield Artifact(
+                source=self.name,
+                vintage=str(year),
+                url=self.URL_PATTERN.format(year=year),
+                local_path=Path(f"data/original/{self.name}/{year}/report.pdf"),
+                metadata={"year": year},
+            )
+```
+
+The corresponding `fetch.py` is responsible for HEAD-checking each artifact (so a year that hasn't been published yet doesn't get downloaded). Discovery is the catalog; fetch is the gate.
+
+### Index-page discovery
+
+For publishers with an index page that lists what's available — most agencies' "Reports" landing pages, most secretary of state election archives — `discover()` scrapes the index and yields one artifact per linked PDF/XLSX/CSV:
+
+```python
+import httpx
+from selectolax.parser import HTMLParser
+
+
+class BoulderCountySoV(Source):
+    name = "boulder_county_sov"
+    label = "Boulder County Statement of Vote"
+    INDEX_URL = "https://bouldercounty.gov/elections/historical-results/"
+
+    def discover(self):
+        with httpx.Client() as client:
+            html = client.get(self.INDEX_URL).text
+        tree = HTMLParser(html)
+        for link in tree.css("a[href$='.pdf']"):
+            href = link.attributes.get("href", "")
+            text = link.text(strip=True)
+            vintage = self._parse_vintage(text)
+            if vintage is None:
+                continue
+            yield Artifact(
+                source=self.name,
+                vintage=vintage,
+                url=href,
+                local_path=Path(f"data/original/{self.name}/{vintage}/sov.pdf"),
+                metadata={"link_text": text},
+            )
+
+    @staticmethod
+    def _parse_vintage(link_text: str) -> str | None:
+        """Extract `2009` from `'2009 General Election - Statement of Vote (PDF)'`."""
+        import re
+        m = re.search(r"\b(20\d{2})\b", link_text)
+        return m.group(1) if m else None
+```
+
+This is what makes the pipeline self-updating: a cron run of `discover → fetch → clean → audit` automatically picks up a new vintage when the publisher posts it. The recurring-refresh pattern below depends on this.
+
+### Standalone discovery script
+
+`scripts/discover.py` runs every source's `discover()` and prints what's available, optionally filtering to "what's not yet in `data/original/`":
+
+```bash
+$ uv run python -m scripts.pipeline discover
+boulder_county_sov: 12 artifacts available, 11 already fetched, 1 NEW
+  NEW  2024: https://bouldercounty.gov/.../2024-sov.pdf
+co_secretary_of_state: 8 artifacts available, 8 already fetched
+```
+
+Output also written to `data/audit/discovery-<ts>.txt`. The diff between consecutive runs is a useful change signal: a new vintage appearing is the trigger to fetch.
+
+## Audit: what came in
+
+**Audit's job:** answer "does what we just produced look right?" Run after every `clean.py` pass. The artifact is `data/audit/summary-<ts>.md`, scannable in 30 seconds by a maintainer reviewing a refresh PR.
+
+What goes in the audit (this is what `audit.py` writes to `data/audit/summary-<ts>.md`):
+
+| Section | What it tells you |
+|---|---|
+| **Row count** | Total rows in the processed CSV. Headline number for refresh diffs. |
+| **Source coverage** | Rows per `(source, vintage)`. Should match expectations: every registered source × vintage should be non-zero. |
+| **Null rates per column** | Catches schema drift (a column suddenly all-null usually means a layout change broke a parser). |
+| **Distinct values for low-cardinality columns** | Sanity check for categorical columns: did the controlled vocabulary just gain or lose a value? |
+| **Empty sources / vintages** | Explicit flagged section. A registered source returning zero rows is almost always a regression. |
+| **Extraction errors** | Summary of `data/audit/extraction_errors.json` — which artifacts failed to parse, with the exception type and the first line of the error. |
+
+The Markdown format is deliberate. Auto-generated reports that nobody reads are wasted effort; Markdown renders inline in a GitHub PR diff and is what a human reviewer actually sees.
+
+### A minimal audit implementation
+
+```python
+# scripts/audit.py
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
+import structlog
+
+from scripts.config import DATA_AUDIT, PROCESSED_CSV
+
+log = structlog.get_logger()
+
+
+def audit_all() -> int:
+    if not PROCESSED_CSV.exists():
+        log.error("audit_no_processed_csv", path=str(PROCESSED_CSV))
+        return 1
+
+    df = pd.read_csv(PROCESSED_CSV, dtype=str)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = DATA_AUDIT / f"summary-{ts}.md"
+
+    lines = [f"# Audit Summary — {ts}", "", f"Rows: **{len(df):,}**", ""]
+    lines.extend(_section_source_coverage(df))
+    lines.extend(_section_null_rates(df))
+    lines.extend(_section_low_cardinality(df))
+    lines.extend(_section_empty_sources(df))
+    lines.extend(_section_extraction_errors())
+
+    out.write_text("\n".join(lines))
+    variables_report(PROCESSED_CSV)
+    return 0
+
+
+def _section_source_coverage(df):
+    coverage = (
+        df.groupby(["source", "vintage"], dropna=False)
+        .size().rename("rows").reset_index()
+        .sort_values(["source", "vintage"])
+    )
+    return ["## Source coverage", "", coverage.to_markdown(index=False), ""]
+```
+
+### `docs/variables.{md,csv}` — the long-form column report
+
+The same `audit.py` (or a sibling function) emits the long-form per-column summary that complements the hand-maintained `docs/data-dictionary.md`:
+
+```python
+def variables_report(processed_csv: Path) -> None:
+    df = pd.read_csv(processed_csv)
+    rows = []
+    for col in df.columns:
+        s = df[col]
+        rows.append({
+            "column": col,
+            "dtype": str(s.dtype),
+            "distinct": int(s.nunique(dropna=True)),
+            "null_rate": float(s.isna().mean()),
+            "min": s.min() if pd.api.types.is_numeric_dtype(s) else "",
+            "max": s.max() if pd.api.types.is_numeric_dtype(s) else "",
+            "sample_values": ", ".join(str(v) for v in s.dropna().unique()[:5]),
+        })
+    rep = pd.DataFrame(rows)
+    rep.to_csv("docs/variables.csv", index=False)
+    Path("docs/variables.md").write_text(
+        "# Variables (auto-generated)\n\n" + rep.to_markdown(index=False)
+    )
+```
+
+If `variables.csv` says a column is `object` and `docs/data-dictionary.md` says it's `Int64`, the dictionary is wrong or the parser is. Treat their agreement as a precondition — see `references/data-modeling.md` for the rationale.
+
+### Recording extraction errors
+
+`audit.py` also defines `record_extraction_error()`, called from `clean.py` when an individual artifact's parse fails. The pipeline doesn't stop — the failure appends to `data/audit/extraction_errors.json` and the next vintage proceeds:
+
+```python
+def record_extraction_error(*, source: str, artifact, error: Exception) -> None:
+    EXTRACTION_ERRORS_JSON.parent.mkdir(parents=True, exist_ok=True)
+    existing = json.loads(EXTRACTION_ERRORS_JSON.read_text()) if EXTRACTION_ERRORS_JSON.exists() else []
+    existing.append({
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        "artifact_url": artifact.url,
+        "artifact_vintage": artifact.vintage,
+        "error_type": type(error).__name__,
+        "error_message": str(error),
+        "traceback": "".join(traceback.format_exception(type(error), error, error.__traceback__)),
+    })
+    EXTRACTION_ERRORS_JSON.write_text(json.dumps(existing, indent=2, default=str))
+```
+
+This is the "durable, not fatal" pattern: a parser failure on one vintage doesn't block the eleven other vintages from refreshing. The audit summary flags it next run; a human investigates on their own schedule.
+
+## Reconciliation
+
+For high-stakes pipelines (anything that will be cited publicly — election results, financial reports, agency budgets), re-open each original file independently and compute a small set of authoritative top-line totals, then compare to the processed output. Mismatches are regressions: the pipeline run completes (don't lose the data), but CI fails on the reconcile job and the audit flags it.
+
+[BoulderPublicData/Election-Results' `reconcile.py`](https://github.com/BoulderPublicData/Election-Results) is the canonical example. It currently has 149 of 150 cross-checks matching exactly. The one mismatch is documented in `docs/data-dictionary.md` with the upstream-error explanation (a Statement of Vote PDF that itself contained an arithmetic error in one precinct subtotal). That kind of *known and documented* mismatch is what "safe scrutiny" looks like at a pipeline level — not zero mismatches, but every mismatch accounted for.
+
+### The skeleton
+
+```python
+# scripts/reconcile.py
+from dataclasses import dataclass, field
+from typing import Callable
+
+import pandas as pd
+
+
+@dataclass
+class Check:
+    label: str
+    expected: int | float
+    actual: int | float
+    match: bool
+    delta: int | float = 0
+    notes: str = ""
+
+
+@dataclass
+class ReconcileResult:
+    source: str
+    checks: list[Check] = field(default_factory=list)
+
+
+def reconcile_boulder_sov() -> ReconcileResult:
+    """Sum votes per contest from each original PDF; compare to processed CSV."""
+    df = pd.read_csv("data/processed/boulder_election_results.csv")
+    checks: list[Check] = []
+    for original_pdf in sorted(Path("data/original/boulder_county_sov").rglob("*.pdf")):
+        vintage = original_pdf.parent.name
+        pdf_totals = _extract_totals_from_pdf(original_pdf)  # parser-specific
+        csv_totals = (
+            df.query("source == 'boulder_county_sov' and vintage == @vintage")
+              .groupby("contest")["votes"].sum().to_dict()
+        )
+        for contest, expected in pdf_totals.items():
+            actual = csv_totals.get(contest, 0)
+            checks.append(Check(
+                label=f"{vintage}:{contest}",
+                expected=expected, actual=actual,
+                match=(expected == actual),
+                delta=actual - expected,
+            ))
+    return ReconcileResult(source="boulder_county_sov", checks=checks)
+
+
+RECONCILE_REGISTRY: dict[str, Callable[[], ReconcileResult]] = {
+    "boulder_county_sov": reconcile_boulder_sov,
+}
+```
+
+### When to turn reconciliation on
+
+Default: off. Reconciliation costs developer time to write per-source logic and CI time on every run.
+
+Turn it on when:
+
+- The data will be cited publicly.
+- The data is contested (election results, salary databases, anything where someone has motivation to dispute the numbers).
+- The publisher publishes top-line totals separately from the per-row data, *and* those totals are authoritative (the published total is the ground truth, not just a side-effect).
+
+Don't turn it on for:
+
+- Exploratory pipelines.
+- Sources where you don't have an independent total to compare against.
+- One-shot extractions that won't be re-run.
+
+When you do turn it on, document the reconciliation logic in `AGENTS.md` so a future maintainer knows which totals are the authoritative ones to check against. Boulder Election-Results does this clearly: the AGENTS.md section "What reconcile.py checks" enumerates the four authoritative totals per Statement of Vote and explains why each is independent of the per-precinct rows.
+
+### Reconcile output
+
+`scripts/reconcile.py` writes `data/audit/reconcile.json` with the full per-check results and prints a summary:
+
+```
+$ uv run python -m scripts.pipeline reconcile
+[boulder_county_sov] 149/150 checks matched
+    ✗ 2009:BOULDER COUNTY COMMISSIONER DISTRICT 1: expected=23456 actual=23457 delta=1
+       (known: precinct 042 subtotal in source PDF has +1 arithmetic error;
+        see docs/data-dictionary.md "Known mismatches")
+```
+
+Non-matching checks return a non-zero exit code, which fails the CI reconcile job. The pipeline `run` workflow continues; the reconcile failure is a separate signal.
+
+## The recurring-refresh pattern (cron + PR)
+
+For recurring sources (annual SoV, monthly FOIA logs, weekly compensation pulls), the right shape is a GitHub Actions cron that runs `discover → fetch → clean → audit`, then opens a PR with the new data and audit report. Humans review the PR; nothing merges to main without inspection.
+
+### `.github/workflows/refresh.yml`
+
+The template ships this as `refresh.yml.disabled` (rename to enable). Skeleton:
+
+```yaml
+name: Refresh data
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"   # Mondays 13:00 UTC; adjust per source cadence
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { enable-cache: true }
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Discover and fetch
+        run: |
+          uv run python -m scripts.pipeline discover
+          uv run python -m scripts.pipeline fetch
+
+      - name: Clean and audit
+        run: |
+          uv run python -m scripts.pipeline clean --fail-on-empty
+          uv run python -m scripts.pipeline audit
+
+      - name: Open PR if data changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Refresh data"
+          branch: data-refresh/${{ github.run_number }}
+          title: "Data refresh — automated"
+          body: |
+            Automatic data refresh.
+
+            Review checklist:
+            - [ ] Row-count delta in `data/audit/summary-*.md` matches expected.
+            - [ ] No new entries in `data/audit/extraction_errors.json`.
+            - [ ] No new flags in the audit "Empty sources" section.
+            - [ ] Reconcile (if enabled) still passes.
+          add-paths: |
+            data/original/**
+            data/processed/**
+            data/audit/**
+            docs/variables.*
+```
+
+### Cron cadence guidance
+
+Set the cron to slightly trail the publisher's typical posting day:
+
+| Publisher cadence | Cron |
+|---|---|
+| Annual (post-certification) | `"0 13 1 11 *"` — Nov 1, 13:00 UTC, runs once per year |
+| Monthly | `"0 13 1 * *"` — 1st of each month |
+| Weekly | `"0 13 * * 1"` — Mondays |
+| On-demand only | Omit `schedule:`; keep `workflow_dispatch:` |
+
+A cadence that runs faster than the publisher updates is wasted compute and pollutes the audit history. A cadence that lags is fine — `workflow_dispatch` covers the impatient case.
+
+### Why PR, not commit-to-main
+
+Auto-commits to main mean a silent change to published data. A PR forces a human pass:
+
+- Look at the audit summary. Does the row-count delta make sense (one new vintage = one new chunk of rows)?
+- Check the "Empty sources" section. Did anything quietly stop working?
+- Look at the parser fixtures. Does the test suite still pass on the new fetched data?
+- If reconcile is enabled, did any checks newly mismatch? Investigate before merging.
+
+For very mature pipelines with established quality, some projects relax this to commit-to-main with audit-driven rollback. But the PR pattern is the safer default and what most civic projects (BoulderPublicData, PUDL, IPEDS-pipeline) actually use.
+
+## Common failure modes
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `discover.py` reports zero artifacts | Index page redesigned; CSS selector no longer matches | Update the selector; commit a recorded HTTP cassette in `tests/fixtures/` so the test catches the next breakage |
+| Audit shows null rates of 1.0 for a previously-working column | Parser broke silently on a layout change | Look at the most recent vintage in `data/original/`; compare to the prior vintage's layout |
+| `extraction_errors.json` accumulates across runs without anyone noticing | Audit summary doesn't surface error count prominently enough | Add an early-section "⚠️ N extraction errors" line to the audit Markdown |
+| Reconcile passed for years and now fails on one check | (a) Genuine regression in a new parser, OR (b) upstream arithmetic error in the source PDF | Re-open the source PDF; compute the totals by hand on one precinct. If the source PDF itself is wrong, document in `docs/data-dictionary.md` "Known mismatches" and adjust the expected total. |
+| Cron runs daily and the publisher updates annually | Cadence mismatch; audit history is mostly noise | Move cron to annual; use `workflow_dispatch` for impatient refreshes |
+| PR from cron sits unreviewed for months | No notification or human accountability | Add a `CODEOWNERS` entry; configure GitHub notifications; or move to commit-to-main with strong audit-driven rollback |
+
+## What to write in the AGENTS.md
+
+For each pipeline, AGENTS.md should record:
+
+- **Refresh cadence.** Annual, monthly, on-demand. The cron expression, if `refresh.yml` is enabled, and which day of the publication cycle it trails.
+- **Discovery surface.** What `discover.py` checks — the URL pattern, the index page, the year range. If a publisher changes their index page, this is where the maintainer looks first.
+- **Reconcile scope (if enabled).** Which authoritative totals are checked, in which sources, against which originals. The "Known mismatches" section, with each entry's explanation.
+- **Audit invariants worth knowing.** "Source X should always be non-empty for vintages 2010 onward." "Null rate on `precinct` should be ≤ 0.01 — anything higher is a regression." The audit summary alone can't tell a reviewer what *should* be true; AGENTS.md is where the institutional knowledge lives.
+
+This is the catalog that makes recurring refresh sustainable. The cron is the easy part; knowing what counts as "looks right" is the work.
