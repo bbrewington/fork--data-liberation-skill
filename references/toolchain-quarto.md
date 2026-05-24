@@ -61,7 +61,7 @@ A small set of `.qmd` files in `docs/` becomes the site:
 
 - `docs/index.qmd` — landing page: what the dataset is, where to get it, who to cite, the Datasette URL, the bulk-download URL.
 - `docs/data-dictionary.qmd` — the long-form column-by-column reference.
-- `docs/filter-pivot-recipes.qmd` — pandas + tidyverse + Excel recipes, with executable code blocks that run against a small sample of the data committed to the repo.
+- `docs/filter-pivot-recipes.qmd` — Python/pandas + R/tidyverse + SQL/DuckDB recipes, with executable code blocks that run against a small sample of the data committed to the repo.
 - `docs/methodology.qmd` — how the data was extracted, what's known to be incomplete, the reconciliation log, the cross-source caveats from the concept catalog.
 - `docs/changelog.qmd` — what changed in each vintage, what schema migrations happened, what's deprecated.
 

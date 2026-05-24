@@ -128,10 +128,12 @@ Default to **Wickham-tidy long format**: one row per observation, one column per
 
 Some domains have a more natural wide-by-key shape (e.g., one row per ballot in Cast-Vote-Records, where the ballot itself is the observation and each contest is a variable). In those cases, keep wide as the primary storage — but still emit a tidy long-form derivative for cross-source analysis if the project is multi-source.
 
-Always include in `docs/filter-pivot-recipes.md`:
-- **pandas** recipe: `df[df['variable'] == ...].pivot_table(index=..., columns=..., values=...)`
-- **R/tidyverse** recipe: `df |> filter(variable == ...) |> pivot_wider(names_from=..., values_from=...)`
-- An Excel/Google Sheets recipe if non-technical readers may be a primary audience
+Always include in `docs/filter-pivot-recipes.md`, side by side, for each recipe:
+- **Python / pandas** — `df[df['variable'] == ...].pivot_table(index=..., columns=..., values=...)`
+- **R / tidyverse** — `df |> filter(variable == ...) |> pivot_wider(names_from=..., values_from=...)`
+- **SQL / DuckDB** — `PIVOT (FROM read_csv('...csv') WHERE variable = ...) ON ... USING ...`
+
+DuckDB earns the third slot because it queries the CSV directly with no load step, runs SQL the consumer can paste straight into Datasette's SQL editor or BigQuery / Postgres / Snowflake, and handles tens-of-millions-of-rows tables without flinching. (For audiences where pivot tables in Excel or Google Sheets are the dominant consumption pattern, add that as a fourth.)
 
 Generate `docs/data-dictionary.md` by hand (one row per column with type, units, source vocabulary, breakdown caveats). For multi-source projects, also maintain a **concept catalog** — a harmonization crosswalk that maps source-specific variable codes (e.g., IPEDS `EFTOTLT`, CDHE `TOTAL_HEADCOUNT`) to source-neutral concept names (e.g., `enrollment.headcount_fall_total`). The IPEDS pipeline's `concepts.py` (in its `pipeline/` package) is the canonical model; this skill's template puts the same module at `scripts/concepts.py`. Concepts carry not just labels but **caveats** explaining what is and isn't comparable across sources. See [`data-modeling.md`](references/data-modeling.md#concept-catalogs).
 

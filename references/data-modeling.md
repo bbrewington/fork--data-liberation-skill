@@ -215,11 +215,13 @@ The second test is doing the reconciliation work that `scripts/reconcile.py` wou
 
 ## Filter-pivot recipes
 
-`docs/filter-pivot-recipes.md` is the document that bridges tidy storage to wide-form analysis. Ship it in three stacks:
+`docs/filter-pivot-recipes.md` is the document that bridges tidy storage to wide-form analysis. Ship it in three stacks, all reading the canonical CSV at `data/processed/<project>.csv`:
 
-- **pandas** — for Python-using analysts and downstream pipelines.
-- **R/tidyverse** — for academic and policy researchers.
-- **Excel / Google Sheets** — for journalists and non-technical readers, if the audience is broad. Pivot tables are still how most newsroom analysis happens.
+- **Python / pandas** — for Python-using analysts and downstream pipelines. `pd.read_csv(path, dtype=str)` is the safe default; coerce specific columns explicitly.
+- **R / tidyverse** — for academic and policy researchers. `readr::read_csv(path, col_types = cols(.default = col_character()))` mirrors the pandas default.
+- **SQL / DuckDB** — for analysts who prefer SQL, and as a copy-paste-into-Datasette path. `duckdb` reads the CSV directly via `read_csv('data/processed/<project>.csv')`; no load step, no `pyarrow` dependency, and the same SQL runs against the published Datasette instance and most warehouse engines.
+
+(If non-technical readers are a primary audience, an Excel / Google Sheets pivot-table recipe earns a fourth slot. The three above are the durable defaults.)
 
 Four recipes carry most of the weight:
 

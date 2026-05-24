@@ -438,7 +438,7 @@ Hand-maintained. One H2 per column. The IPEDS pipeline's `DATA_DICTIONARY.md` is
 
 ### `filter-pivot-recipes.md`
 
-The bridge between tidy storage and wide-form analysis. Three stacks: pandas, R/tidyverse, Excel/Google Sheets. Four recipes carry most of the weight (single-vintage wide pivot, year × source matrix, geographic roll-up, cross-source concept comparison). See `references/data-modeling.md#filter-pivot-recipes`.
+The bridge between tidy storage and wide-form analysis. Three stacks: Python/pandas, R/tidyverse, SQL/DuckDB — all reading the canonical CSV at `data/processed/<project>.csv`. Four recipes carry most of the weight (single-vintage wide pivot, year × source matrix, geographic roll-up, cross-source concept comparison). See `references/data-modeling.md#filter-pivot-recipes`.
 
 ### `variables.md` and `variables.csv` (auto-generated)
 
