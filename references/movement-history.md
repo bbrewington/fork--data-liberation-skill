@@ -44,6 +44,16 @@ Across these projects a few hard-won patterns recur:
 - **Documentation is half the work.** A liberation without a data dictionary, a crosswalk, and a provenance trail is a private spreadsheet. The point is reuse.
 - **Audit against originals.** A pipeline that doesn't reconcile against its source is faith-based. Reconciliation is what makes the dataset defensible.
 
+### Critical perspectives worth absorbing
+
+The lineage above is told from inside the movement. A parallel scholarly literature reads it from outside, and the skill is better when these critiques are kept in view:
+
+- **Civic hacking has a longer history than the open-data era.** Schrock (2016, [*New Media & Society*](https://doi.org/10.1177/1461444816629469)) traces the civic-hacker back to early-20th-century "publicity" and right-to-information movements, then argues that "the framing of openness shifted in meaning from information to data, weakening of mechanisms for accountability even as it opened up new forms of political participation." A useful corrective to skill-internal narratives that begin with PDF Liberation in 2014.
+- **Open-data activism is a modulation of open-source culture.** Baack (2015, [*Big Data & Society*](https://doi.org/10.1177/2053951715594634)) — drawing on Kelty's notion of *modulations* — identifies three things open-data activists do that hackers historically did not: treat raw data (not just source code) as the prerequisite for knowledge, apply the bazaar model of open-source governance to political participation, and acknowledge that intermediaries (journalists, civic technologists) are necessary. The third is where this skill mostly lives.
+- **Open data is necessary but insufficient for justice.** Johnson (2014, [*Ethics and Information Technology*](https://doi.org/10.1007/s10676-014-9351-8)) argues that "open data has the quite real potential to exacerbate as much as alleviate injustices," because datasets embed social privilege as constructed, because user capabilities differ wildly (citizens vs enterprise users), and because data systems impose disciplinary norms via their function. Cite the *information justice* frame in any project README where the data could plausibly be weaponized — salary disclosures, eviction filings, immigration records.
+- **Critiques from outside the movement are also worth naming.** Morozov ([2013](https://en.wikipedia.org/wiki/Evgeny_Morozov)) calls civic hacking "an apolitical category imposed by ideologies of 'scientism'"; Slee ([2012](https://www.aaronsw.com/weblog/openpolitics)) describes the open-data movement as "co-opted and neoliberalist." These are not internal-to-the-movement debates; they argue the *category* is wrong. Acknowledging them honestly in AGENTS.md design-decisions is the cost of intellectual seriousness.
+- **"Data culture" is a contested field, not a coherent asset.** Casemajor (2025, [*Big Data & Society*](https://doi.org/10.1177/20539517251381671)), via a case study of the National Library and Archives of Quebec, frames data culture as "complex arrangements of meanings, material apparatuses, and social practices" — multiple action logics rather than a unified vision. A liberation project deployed inside an existing institution will encounter this; the surveyed sources may be the most important institutional documents the project produces.
+
 ## Academic framing
 
 The activist tradition has a methodological counterpart in the document analysis and data engineering research literature. Three threads matter for this skill.
@@ -166,6 +176,12 @@ Activist / movement tradition:
 - [catalyst-cooperative/pudl](https://github.com/catalyst-cooperative/pudl) — multi-source ETL reference
 - [BoulderPublicData/Election-Results](https://github.com/BoulderPublicData/Election-Results) — modern small-team liberation pattern
 - [ProPublica's data-bulletproofing guide](https://github.com/propublica/guides/blob/master/data-bulletproofing.md) — the journalistic standard for vetting a dataset before publishing it
+
+Critical / scholarly tradition (the movement read from outside):
+- Schrock, *Civic hacking as data activism and advocacy: A history from publicity to open government data*, *New Media & Society*, 2016 — civic hacking's pre-2010 history
+- Baack, *Datafication and empowerment: How the open data movement re-articulates notions of democracy, participation, and journalism*, *Big Data & Society*, 2015 — open-source modulation framework
+- Johnson, *From open data to information justice*, *Ethics and Information Technology*, 2014 — the case that open data alone reproduces injustice
+- Casemajor, *Data cultures: Contested meanings in a public cultural institution*, *Big Data & Society*, 2025 — data culture as plural and contested inside an institution
 
 Methodological / academic tradition:
 - Wirth & Hipp, *CRISP-DM: Towards a standard process model for data mining*, 2000
