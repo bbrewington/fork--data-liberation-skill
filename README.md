@@ -34,7 +34,8 @@ data-liberation-skill/
 │   ├── toolchain-scraping.md         # Ethics, archives, protocols, dynamic pages
 │   ├── toolchain-datasette.md        # SQLite + Datasette publishing
 │   ├── toolchain-quarto.md           # Documentation site + GitHub Pages
-│   └── toolchain-lfs.md              # Git LFS for bulk distribution
+│   ├── toolchain-lfs.md              # Git LFS for bulk distribution
+│   └── toolchain-documentcloud.md    # Source-document publishing with OCR + reader UI + embeds
 ├── scripts/scaffold.py  # Fetches the template repo and renders it
 └── RELEASING.md         # Lockstep version-bump procedure across skill + template repos
 ```

@@ -71,17 +71,18 @@ project-name/
 
 The skeleton is meant to look like every other mature civic liberation project — PUDL, BoulderPublicData/Election-Results, IPEDS-pipeline — so a contributor switching between projects encounters the same directory at the same name doing the same thing. Predictability is the point.
 
-### Three publishing surfaces
+### Four publishing surfaces
 
-The skeleton supports three independent deployment surfaces, each playing to its strengths:
+The skeleton supports four independent deployment surfaces, each playing to its strengths:
 
 | Surface | Source | Target | Workflow |
 |---|---|---|---|
 | **Documentation site** | `docs/*.qmd` + `_quarto.yml` | GitHub Pages (`gh-pages` branch) | `.github/workflows/gh-pages.yml` |
 | **Queryable data interface** | `data/processed/<project>.db` + `metadata.yaml` | Vercel / Fly / Cloud Run | `.github/workflows/publish.yml` |
 | **Bulk data distribution** | LFS-tracked `data/original/`, `*.parquet` | GitHub LFS + Releases | Manual or `release.yml` |
+| **Source documents** | PDFs / FOIA responses / scans under `data/original/<source>/` | DocumentCloud projects with reader UI + OCR + embed iframes | `python-documentcloud` upload step in `refresh.yml`, or a DocumentCloud scraper add-on |
 
-Three references cover the three surfaces independently: [`toolchain-datasette.md`](toolchain-datasette.md), [`toolchain-quarto.md`](toolchain-quarto.md), [`toolchain-lfs.md`](toolchain-lfs.md). The architectural constraint that Git LFS does not work with GitHub Pages — which is why these are three workflows rather than one — is documented in the LFS reference.
+Four references cover the four surfaces independently: [`toolchain-datasette.md`](toolchain-datasette.md), [`toolchain-quarto.md`](toolchain-quarto.md), [`toolchain-lfs.md`](toolchain-lfs.md), [`toolchain-documentcloud.md`](toolchain-documentcloud.md). The architectural constraint that Git LFS does not work with GitHub Pages — which is why publishing is split across surfaces rather than one workflow — is documented in the LFS reference. DocumentCloud closes the gap LFS leaves: where LFS hands readers an opaque file, DocumentCloud gives them a page-anchored permalink with searchable OCR text.
 
 ## Top-level files
 

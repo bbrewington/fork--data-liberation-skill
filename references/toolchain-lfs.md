@@ -1,6 +1,6 @@
 # Toolchain: Git LFS for large datasets
 
-The **bulk distribution** layer of a liberation project's three publishing surfaces (queryable data interface: [`toolchain-datasette.md`](toolchain-datasette.md); documentation site: [`toolchain-quarto.md`](toolchain-quarto.md)).
+The **bulk distribution** layer of a liberation project's four publishing surfaces (queryable data interface: [`toolchain-datasette.md`](toolchain-datasette.md); documentation site: [`toolchain-quarto.md`](toolchain-quarto.md); reader-facing source-document hosting with OCR + embeds + permalinks: [`toolchain-documentcloud.md`](toolchain-documentcloud.md)). LFS dumps raw artifacts as opaque downloadable files; DocumentCloud renders them with a reader UI — pick the right one for the source by the *reader want* (tarball vs page-anchored permalink).
 
 A liberation project accumulates two kinds of files that strain ordinary Git: large source artifacts (full-resolution scanned PDFs, multi-gigabyte XML dumps, archive ZIPs) and large processed outputs (multi-million-row Parquet files). GitHub politely rejects files over 100 MB and *recommends* keeping repos under 1 GB total. [Git Large File Storage (LFS)](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage) is the escape hatch: Git tracks a small pointer file (sha256 + size, ~130 bytes), and the actual content lives on a separate LFS server that GitHub provides.
 
