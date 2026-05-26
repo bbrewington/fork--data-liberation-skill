@@ -6,9 +6,24 @@ The patterns here are distilled from BoulderPublicData/Election-Results (where `
 
 ## Pre-extraction bulletproofing
 
-Before writing a single parser, vet the source itself. ProPublica's data-bulletproofing guide distills the practice across a decade of accountability journalism; the checklist below adapts it for the liberation workflow. Most of these are five-minute checks; skipping them buys hours of debugging later.
+Before writing a single parser, vet the source itself. ProPublica's data-bulletproofing guide distills this practice; the checklist below adapts it for the liberation workflow. Most of these are five-minute checks; skipping them buys hours of debugging later.
 
-ProPublica's practitioner checklist has direct counterparts in the data-quality research literature — and the two literatures rarely cite each other, which is unfortunate because they reach almost identical conclusions from opposite directions. Cai & Zhu's five-dimension framework (*Data Science Journal*, 2015 — see [`data-modeling.md#data-quality-dimensions`](data-modeling.md#data-quality-dimensions)) names what ProPublica's bullets check: record-count and total-line verification fall under *Reliability*; finding the codebook and identifying the contact fall under *Usability*; the date and geography range checks fall under *Availability*. Batini et al.'s methodology survey (*ACM Computing Surveys*, 2009) systematizes the assessment-then-improvement loop. Ehrlinger & Wöß's tool survey (*Frontiers in Big Data*, 2022) finds that practitioner tools chronically under-implement multi-column profiling and dependency discovery — the very checks ProPublica's `GROUP BY`-and-eyeball recommendation forces you to do by hand. Read the bulletproofing checklist as the journalist's working version of what the academic literature calls *data quality assessment*; the words differ, the work is the same.
+Each check below corresponds to a specific [data-quality dimension](data-modeling.md#data-quality) — naming the dimension makes the check defensible to engineers, and using the engineer's framework keeps the journalist honest about what's being measured:
+
+| Check | Dimension it serves |
+|---|---|
+| Record count verification (watch for the 65,536-row Excel ceiling, powers of two) | Completeness |
+| Top-line totals match the publisher's claim | Accuracy |
+| Date and geography range checks | Timeliness; Relevance |
+| `GROUP BY` every categorical field to surface spelling drift | Consistency |
+| Find the publisher's codebook / methodology / statute | Usability (Documentation, Metadata) |
+| Identify the records officer / contact | Usability (Credibility) |
+| Discriminate blanks from sentinel values (`-9`, `9999`, `1900-01-01`) | Completeness (with the three-way *exists-but-unknown* / *does-not-exist* / *unknown-whether-exists* distinction in the data dictionary) |
+| Demand questionnaires for survey-derived data | Usability (Credibility) |
+| Cross-source corroboration | Consistency |
+| Random-sample physical spot-check | Auditability |
+
+The documentation-and-contact checks are *state reconstruction* — the under-rotated, highest-leverage phase that happens before any measurement code is written. See [`data-modeling.md#pipeline-shape--three-phases-the-data-driven-tradeoff`](data-modeling.md#pipeline-shape--three-phases-the-data-driven-tradeoff).
 
 ### Source-level checks
 
@@ -17,7 +32,7 @@ ProPublica's practitioner checklist has direct counterparts in the data-quality 
 - **Date and geography ranges.** Does the data actually cover the years and jurisdictions the publisher claims? A "1980–present" dataset that has zero records before 1995 needs explaining.
 - **Categorical field consistency.** `GROUP BY` every important categorical column and read the result. Spelling variations (`"Main St"` vs `"Main Street"` vs `"MAIN ST."`), trailing whitespace, and case differences are how dirty data hides.
 - **Blank values.** Determine whether blanks are *real values* (the publisher genuinely didn't measure this) or *import errors* (the column dropped during export). The two cases require different treatment in the parser.
-- **Suspicious sentinel values.** `-9`, `9999`, `99999999`, `-1`, `1900-01-01`, the empty string — government datasets use ALL of these for "missing." Document the ones this source uses and convert them to NA in the parser, not silently in the pipeline.
+- **Suspicious sentinel values.** `-9`, `9999`, `99999999`, `-1`, `1900-01-01`, the empty string — government datasets use ALL of these for "missing." Document the ones this source uses and convert them to NA in the parser, not silently in the pipeline. See [`cleaning-and-standardization.md`](cleaning-and-standardization.md#4-missing-value-treatment) for the Rubin MCAR/MAR/MNAR framework and treatment choices.
 
 ### Methodology and provenance checks
 

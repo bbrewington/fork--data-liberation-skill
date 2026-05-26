@@ -173,27 +173,73 @@ The audit trail. Three rules:
 
 Provenance is what makes the dataset *defensible*. When a downstream user finds an anomaly, the chain is: `(source, vintage)` in the processed CSV → matching row in `provenance.csv` → `source_url` and `sha256` → the original file in `data/original/`. Anyone with a clone can reproduce the extraction and verify.
 
-## Data quality dimensions
+## Data quality
 
-"High-quality data" is the deliverable, but quality is not one thing. The data-quality research literature traces back to Juran's [*fitness for use*](https://archive.org/details/juransqualitycon0000jura) (1974) and was operationalized for information systems by Wang and Strong's "Beyond Accuracy: What Data Quality Means to Data Consumers" ([*JMIS*](https://web.mit.edu/tdqm/www/tdqmpub/WangStrongJMIS96.pdf), 1996), which surveyed data consumers to derive four categories and fifteen dimensions. Subsequent surveys — Batini, Cappiello, Francalanci & Maurino's "Methodologies for Data Quality Assessment and Improvement" ([*ACM Computing Surveys*](https://doi.org/10.1145/1541880.1541883), 2009) and Ehrlinger & Wöß's "A Survey of Data Quality Measurement and Monitoring Tools" ([*Frontiers in Big Data*](https://doi.org/10.3389/fdata.2022.850611), 2022, n=667 tools) — show wide variation in dimension naming but durable agreement that quality is multi-dimensional and context-dependent.
+"Quality" is the deliverable, but it isn't one thing. The skill commits to a working definition: **data is high-quality when it is *fit for use*** (Juran 1974; Wang & Strong 1996). What "fit" means depends on what the user is doing with it, so the skill uses a multi-dimensional decomposition for naming what changed when a parser, schema, or audit changes.
 
-For civic liberation projects, the most directly applicable taxonomy is Cai & Zhu's hierarchical framework from "The Challenges of Data Quality and Data Quality Assessment in the Big Data Era" ([*Data Science Journal*](https://datascience.codata.org/articles/10.5334/dsj-2015-002), 2015). Five dimensions, each unpacked into elements and indicators, organized *from the user's perspective* (not the producer's — which matters in civic data, where the user and producer are usually different organizations):
+### Five dimensions, mapped to pipeline operations
 
-| Dimension | Elements | What this skill's pipeline does about it |
+This skill adopts the five-dimension naming from Cai & Zhu (2015) because it's organized from the *user's* perspective — the right framing for civic data where the publisher and the consumer are different organizations. Every pipeline operation maps to one of these dimensions, so when a reviewer asks "what improved?" or "what broke?" the answer is a dimension, not a vibe.
+
+| Dimension | What it covers | Where this skill produces it |
 |---|---|---|
-| **Availability** | Accessibility, Timeliness, Authorization | `fetch.py` makes the originals locally accessible; `requests-cache` + `tenacity` handle network reliability; the source registry + provenance sidecar record the legal basis for use. |
-| **Usability** | Definition / Documentation, Credibility, Metadata | `docs/data-dictionary.md` is the per-column definition; `docs/methodology.qmd` documents the extraction; the Datasette `metadata.yaml` carries the same content into the published interface. |
-| **Reliability** | Accuracy, Consistency, Completeness, Integrity, Auditability | `pandera` schema enforces dtype consistency and value ranges; `audit.py` reports null rates and distinct values; `reconcile.py` (opt-in) verifies accuracy against the source's own top-line totals. |
-| **Relevance** | Fitness | Survey-phase: the unit of observation and vintage convention are chosen for the project's analysis questions; the concept catalog ensures cross-source rows are actually comparable. |
-| **Presentation Quality** | Readability, Structure | Tidy long-form, ID-like columns kept as strings, documented sentinel values; Datasette's faceting and canned queries; Quarto's filter-pivot recipes. |
+| **Availability** | Can the user obtain the data? Is it current? Is the use authorized? | `fetch.py` + the source registry + `provenance.csv`'s `source_url`, `retrieved_at`, license/legal-basis notes |
+| **Usability** | Is the data documented, credible, and accompanied by enough metadata to be used safely? | `docs/data-dictionary.md` (hand-authored), `docs/methodology.qmd`, Datasette `metadata.yaml`, the bibliography of prior work in the README's *movement context* |
+| **Reliability** | Is the data accurate, consistent, complete, structurally intact, and auditable? | `pandera` schema (consistency + integrity); `audit.py` null rates and distinct values (completeness); `reconcile.py` against authoritative totals (accuracy); the diff-able `data/audit/summary-*.md` (auditability) |
+| **Relevance** | Does the data answer the question the user is bringing? | Survey-phase decisions (unit of observation, vintage convention); the concept catalog (cross-source harmonization with caveats) |
+| **Presentation Quality** | Can the user read and reason about the data without translating? | Tidy long-form, ID-like columns kept as strings, documented sentinel values, Datasette's faceted views, the filter-pivot recipes |
 
-The point is not to memorize all the dimensions — it's that **every operation in the pipeline maps onto one of them**. When a reviewer asks "is this data high quality?", the productive response is to walk through this table rather than reach for "yes/no." When a parser is failing, identifying which dimension it's failing on tells you what to fix.
+The first four are load-bearing; presentation quality is the polish on top. When a parser is failing, identify which of these is in trouble — that tells you which file to open.
 
-Cai & Zhu also describe a quality-assessment process flow with a feedback loop (Figure 3 in their paper): determine goals → choose dimensions → set indicators → collect → clean → assess → analyze → adjust. The skill's `discover → fetch → clean → audit → reconcile` chain is one implementation of that loop; see `references/discovery-and-audit.md` for the patterns.
+### The four operational dimensions
 
-A complementary practitioner-side decomposition comes from Ehrlinger & Wöß's tool survey: data-quality work splits into **profiling** (describing what's there — `docs/variables.{md,csv}` produced by `audit.py`), **measurement** (computing metrics against declared dimensions — the pandera schema, `reconcile.py`), and **monitoring** (catching drift over time — the recurring-refresh PR with a diffable audit summary). When designing a new project, ask which of the three you're under-investing in; the answer is usually monitoring, and the cron-driven refresh closes that gap.
+For dimensions you actually *compute* in code, four are durable enough across the literature to take seriously:
 
-For unstructured-text-derived data (FOIA narratives, agency case logs, maintenance work orders), Woods, Selway, Bikaun, Stumptner, & Hodkiewicz's "An ontology for maintenance activities and its application to data quality" (*[Semantic Web](https://content.iospress.com/articles/semantic-web/sw233299)*, 2024) is a worked example of using a reference ontology to surface quality issues in free-text fields — relevant when a project's data has a narrative column that must be reconciled to a controlled vocabulary. For the Linked Data / RDF / SPARQL case specifically, Debattista, Auer & Lange's "Luzzu" framework (*[ACM J. Data and Information Quality](https://doi.org/10.1145/2992786)*, 2016) is the canonical extensible quality-assessment harness, with quality issues represented as RDF themselves so they round-trip through the same tooling.
+| Dimension | Working definition | How the skill measures it |
+|---|---|---|
+| **Accuracy** | Closeness to a known reference value | `reconcile.py` against the source's own published totals |
+| **Completeness** | Non-null share, with the three-way distinction *missing-and-known-to-exist* / *does-not-exist* / *unknown-whether-exists* recorded in the dictionary | `audit.py` null rates; sentinel-value handling in parsers (see [`cleaning-and-standardization.md`](cleaning-and-standardization.md#4-missing-value-treatment)) |
+| **Consistency** | Conformance to declared schema and to cross-source agreement | `pandera` schema violations; cross-source `reconcile.py` |
+| **Timeliness** | `max(0, 1 − (fetched_at − published_at) / publisher_cadence)` | `provenance.csv`'s timestamps + the source's declared cadence |
+
+### Three layers of quality work — profile, measure, monitor
+
+A useful decomposition for what `audit.py` actually does (Ehrlinger & Wöß 2022):
+
+- **Profiling** — *describe what's there.* Dtypes, distinct counts, null rates, min/max, value patterns, distributions. The skill produces `docs/variables.{md,csv}` automatically on every audit.
+- **Measurement** — *compute metrics against declared dimensions.* Pandera catches schema violations at write time; `reconcile.py` catches accuracy violations against authoritative totals.
+- **Monitoring** — *catch drift over time.* The recurring-refresh PR + diff-able `data/audit/summary-*.md` is the skill's monitoring loop. Commercial DQ tools generally paywall monitoring; this comes for free from cron + version control.
+
+Don't conflate them. A project that profiles without measuring has descriptive stats but no thresholds; a project that measures without monitoring catches today's bug but not tomorrow's drift.
+
+## Free-text quality — the narrative-column pattern
+
+Most civic-data sources combine a few structured fields (date, location, status, cost) with one or more free-text fields (incident narrative, FOIA response, case disposition note, 311 description). The free text is almost always the lowest-quality part of the record and the highest-stakes part for analysis — it determines what category the row belongs to, and it's written by many different staff over many years with no controlled vocabulary.
+
+The pattern that works (after Woods et al. 2024's maintenance-work-order study):
+
+1. **Treat the free-text field as the primary site of DQ failure**, not as the authoritative description. Benchmark it *against* the structured fields, not the other way around.
+2. **Build the controlled vocabulary empirically.** Frequency-analyze the corpus, find the top tokens covering ~99% of records, lexically normalize (misspellings, tense, prefixes), then group synonyms into 5–10 canonical action/disposition terms. Top-down vocabularies miss the verbs that actually appear; bottom-up vocabularies catch the long-tail synonyms.
+3. **Store the vocabulary in `data/lookups/`** as a yaml file with one entry per canonical term and its synonym set. Same structure as the concept catalog (see [Concept catalogs](#concept-catalogs)), with two differences: the canonical terms are verbs/dispositions instead of variables, and each entry can carry an *expected-structured-field-pattern* the term should co-occur with.
+4. **Write parser-level cross-checks** that compare the narrative verb against the structured fields and flag mismatches as DQ issues: cost-vs-action ("service" with $0 labour = work logged but not done); preventative-vs-corrective; verb-conflated-with-discovery ("investigate X" with $0 follow-up).
+5. **For records with no verb in the narrative**, *infer* the likely category from the structured fields but mark the row with an `inferred` or `uncertain` classifier so downstream users can choose whether to include it. Never silently fill.
+
+The audit's job, then, is not to clean these records but to report: *N records had the verb match the structured fields, M had mismatches (catalogued by pattern), K had no verb (inferred), L could not be classified.*
+
+## Pipeline shape — three phases, the data-driven tradeoff
+
+Any data-quality effort traverses three phases (Batini et al. 2009):
+
+- **State reconstruction** — the contextual work *before* you measure: find the codebook, identify the records officer, surface prior journalism, get the FOIA history. This is the Survey phase; see [SKILL.md's Survey section](../SKILL.md).
+- **Assessment** — measurement plus comparison against reference values. `audit.py` is measurement; `reconcile.py` is assessment.
+- **Improvement** — parser-by-parser, vintage-by-vintage iteration. The recurring-refresh PR is the closure.
+
+Two strategic choices structure improvement:
+
+- **Data-driven** — fix the data after it's published. Civic projects are almost always here, because the publisher is out of reach. Cost-efficient short-term, expensive long-term.
+- **Process-driven** — fix the publisher's process so the data arrives clean. Cheap long-term, but the lead time is years. For civic data, the closest realistic move is *advocating for better source agreements* (the FOIA-modernization angle).
+
+The honest framing for AGENTS.md: a civic liberation pipeline is the data-driven *short-term* answer to a problem whose process-driven long-term answer (the agency publishes better data in the first place) is decades away. That tradeoff is structural, not accidental.
 
 ## Validation
 
