@@ -45,6 +45,23 @@ This skill maps to the CRISP-DM phases of **data understanding → preparation �
   the source   the project   + tables out  document   vs. truth  Datasette
 ```
 
+**Vocabulary alignment with industry frameworks.** This skill's six phases map onto the steps named by mainstream data-workflow frameworks (e.g., Monte Carlo's 8-step model and adjacent dbt/observability vocabularies). Use these as searchable synonyms — the names differ; the work is the same:
+
+| Industry term | This skill's phase | What's named |
+|---|---|---|
+| **Goal Planning / Data Identification** | Survey | `discover.py` + Survey notes; unit-of-observation choice; codebook hunt |
+| **Data Extraction** | Extract | `fetch.py` + per-vintage parsers' `read_*` calls |
+| **Data Cleaning and Transformation** | Tidy (+ the cleaning pipeline) | 9-step parser-time pipeline in [`cleaning-and-standardization.md`](references/cleaning-and-standardization.md) |
+| **Data Loading** | end of Tidy / start of Publish | `clean.py` writing the canonical CSV; `publish.py build` materializing the SQLite |
+| **Data Validation** | Audit | `pandera` schema at the boundary; `audit.py`; `reconcile.py` against authoritative totals; the reject port |
+| **Data Lineage** | (within Audit) | `provenance.csv` per-extract sidecar joined by `(source, vintage)` |
+| **Data Observability** | (within Audit) | The diff-able `data/audit/summary-*.md` reviewed on every refresh PR |
+| **Data Governance** | (cross-cutting) | License inheritance, PII redaction policy, data-subject considerations, downstream-accountability path — see the *Governance* section of [`project-template.md`](references/project-template.md#governance) |
+| **Data Analysis and Modeling** | **Out of scope** | This skill deliberately stops at the deployment phase of CRISP-DM |
+| **Data Maintenance** | recurring-refresh pattern | Cron-driven `discover → fetch → clean → audit` opening a reviewable PR; see [`discovery-and-audit.md`](references/discovery-and-audit.md) |
+
+The reason for the alignment isn't to import the industry framings wholesale — it's so an agent that arrives via a Monte Carlo / dbt / Dagster context finds the right place in the skill, and so a search for "data validation" or "data lineage" lands somewhere useful.
+
 ### 1. Survey — understand the source before touching code
 
 Before opening a Python file, answer:

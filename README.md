@@ -6,12 +6,14 @@ An [Agent Skill](https://agentskills.io) for orchestrating data liberation proje
 
 Loaded into a compatible agent (Claude Code, Claude.ai, VS Code Copilot, Cursor, OpenAI Codex, Gemini CLI, Goose, OpenCode, and the [other clients in the AgentSkills ecosystem](https://agentskills.io/home)), it gives the agent:
 
-- **A project template.** Immutable originals → processed tidy data → audit reports → lookups (crosswalks). Bootstraps single-source but is structured for multi-source work from day one.
+- **A six-phase workflow** — Survey → Scaffold → Extract → Tidy → Audit → Publish — mapping to CRISP-DM's data understanding → preparation → deployment phases and deliberately stopping where modeling begins. Searchable against industry vocabulary (Goal Planning, Data Extraction, Data Cleaning and Transformation, Data Loading, Data Validation, Data Lineage, Data Observability, Data Governance, Data Maintenance) — see SKILL.md's vocabulary-alignment table.
+- **A project template.** Immutable originals → processed tidy data → audit reports → lookups (crosswalks). Bootstraps single-source but is structured for multi-source work from day one. Fetched on demand from [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template) by `scripts/scaffold.py`.
 - **Toolchain decision trees.** When to reach for pdfplumber vs. camelot vs. tesseract; requests + BeautifulSoup vs. headless browser vs. archived snapshots; how to normalize XLSX / CSV / Parquet / HTML / XML / JSON into tabular form.
-- **Documentation conventions.** Data dictionaries, harmonization crosswalks, per-extract provenance, filter-and-pivot recipes for tidy ↔ wide reshapes.
-- **Auditing patterns.** Discovery of new upstream sources; reconciliation of processed data against original totals.
-- **A six-phase workflow** — Survey → Scaffold → Extract → Tidy → Audit → Publish — that maps to CRISP-DM's data understanding → preparation → deployment phases and deliberately stops where modeling begins.
-- **The movement context.** The civic data liberation tradition (Sunlight Foundation, PDF Liberation Working Group, MuckRock, PUDL, BoulderPublicData) and its academic counterpart (Shigarov's table understanding survey, Holstein et al.'s data understanding dimensions).
+- **A 9-step cleaning pipeline.** Profile → structural fixes → exact + fuzzy deduplication (Jaro-Winkler / Levenshtein) → missing-value treatment (Rubin's MCAR/MAR/MNAR) → outlier detection (IQR + impossible-value ranges) → standardization → validation + reject port → PII redaction (presidio/scrubadub) → documentation. Each step with concrete tooling, mapped to a semantic role (source-extraction / transformation / sink-publication).
+- **Documentation conventions and the contract framing.** Data dictionaries and pandera schemas as a *contract* the processed CSV obeys; concept catalogs as contracts at the cross-source-equivalence level; per-extract provenance; the five-dimension data-quality framework (availability / usability / reliability / relevance / presentation).
+- **Auditing and bulletproofing patterns.** Discovery of new upstream sources; reconciliation of processed data against authoritative top-line totals; a pre-extraction bulletproofing checklist mapping each practitioner check to a quality dimension; the cron-driven recurring-refresh PR pattern.
+- **A governance section.** License inheritance, data-subject considerations (CARE principles, out-of-scope use declarations), project-internal governance (schema-revision discipline, conflict-resolution paths), and downstream accountability (error-reporting paths, citation guidance, retraction-equivalent paths).
+- **The movement context.** The civic-data liberation tradition (Sunlight Foundation, PDF Liberation Working Group, MuckRock, PUDL, BoulderPublicData) and the scholarly critiques worth keeping in view — Baack's "empowering intermediary" framing, Schrock's five activities of civic hacking, Johnson's information-justice frame, Casemajor's contested-data-culture diagnosis.
 
 The skill triggers on phrases like "data liberation," "PDF extraction," "tidy data," "data dictionary," "crosswalk," "provenance," "reconcile," and "scrape this site" — and on any request that involves turning a document into a dataset someone else could reuse. See [SKILL.md](SKILL.md) for the full instructions.
 
@@ -21,10 +23,23 @@ The skill triggers on phrases like "data liberation," "PDF extraction," "tidy da
 data-liberation-skill/
 ├── SKILL.md           # Skill entry point (loaded on activation)
 ├── references/        # Toolchain + methodology docs (loaded on demand)
-└── scripts/           # scaffold.py — fetches the template repo and renders it
+│   ├── project-template.md           # Project skeleton spec + governance checklist
+│   ├── data-modeling.md              # Tidy, schema-as-contract, concepts, quality dimensions
+│   ├── cleaning-and-standardization.md  # 9-step parser-time cleaning pipeline
+│   ├── discovery-and-audit.md        # Bulletproofing, discover/audit/reconcile, recurring refresh
+│   ├── movement-history.md           # Civic-data lineage + critical perspectives + academic framing
+│   ├── toolchain-pdf.md              # pdfplumber, camelot, tesseract decision tree
+│   ├── toolchain-tabular.md          # XLSX (incl. panel-format), CSV, Parquet, databases
+│   ├── toolchain-documents.md        # HTML, XML, JSON → tidy
+│   ├── toolchain-scraping.md         # Ethics, archives, protocols, dynamic pages
+│   ├── toolchain-datasette.md        # SQLite + Datasette publishing
+│   ├── toolchain-quarto.md           # Documentation site + GitHub Pages
+│   └── toolchain-lfs.md              # Git LFS for bulk distribution
+├── scripts/scaffold.py  # Fetches the template repo and renders it
+└── RELEASING.md         # Lockstep version-bump procedure across skill + template repos
 ```
 
-The working project template lives in a separate repo, [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), pinned to a tagged release. `scripts/scaffold.py` fetches it at scaffold time so the skill repo stays small and an agent doesn't burn context on files it shouldn't be reading directly.
+The working project template lives in a separate repo, [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), pinned to a commit SHA so scaffolded output is reproducible. `scripts/scaffold.py` fetches it at scaffold time so the skill repo stays small and an agent doesn't burn context on files it shouldn't be reading directly.
 
 ## Installation
 

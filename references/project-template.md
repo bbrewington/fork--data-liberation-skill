@@ -466,6 +466,59 @@ Renders the Quarto documentation site to GitHub Pages on every push to `main` th
 
 Template ships as `gh-pages.yml.disabled`. Enable once the project has a Quarto site authored under `docs/` and the one-time local setup is done. See `references/toolchain-quarto.md` for the workflow itself and `references/toolchain-lfs.md` for the LFS architectural caveat.
 
+## Governance
+
+Civic-data projects publish information about *people, institutions, and systems whose interests aren't always aligned with publication*. The skill scatters governance-relevant content across the data dictionary (caveats), provenance.csv (legal basis), the cleaning pipeline (PII redaction at step 8), and AGENTS.md (design decisions); this section names the *up-front* decisions every project should make explicitly. Treat this as a checklist run during the Survey phase, not a phase of its own — but the answers belong in AGENTS.md and the README, not in someone's head.
+
+### License inheritance
+
+The source's license is not the project's license. Many publishers attach terms (CORA-conditional, "for non-commercial use," "no redistribution without attribution") that the project must propagate or honor.
+
+- **Identify the source's license.** Look in the publisher's terms-of-use, the FOIA response letter, the dataset's metadata. If unclear, ask the records officer (this is part of the bulletproofing checklist's *state reconstruction* phase). Document the answer in `data/processed/provenance.csv` under `extraction_notes` or a dedicated `source_license` column.
+- **Pick the project's license deliberately.** Defaults: **CC-BY-4.0** for the *data*, **MIT** for the *code*. If the source's terms preclude CC-BY (e.g., a restricted FOIA response), name the more restrictive license the project must use and explain why in the README.
+- **Don't laundering-by-tidy.** Repackaging restricted data into a tidy CSV doesn't strip its terms. If a source carries "non-commercial use" forward, the processed CSV does too.
+
+### Data-subject considerations
+
+Some sources contain information *about people who didn't consent to be in the dataset*. PII redaction (cleaning pipeline step 8) handles obvious identifiers; the harder questions live one level up.
+
+- **Identify the data subjects.** Records *about* employees (salary disclosures), residents (incident reports, 311 calls), defendants (court filings, jail rosters), patients (healthcare exposures), beneficiaries (gainful-employment outcomes). Each carries different ethical and legal weight.
+- **Apply the right-to-erasure analog where it exists.** GDPR has Article 17; California has CCPA; some agencies have their own correction-and-deletion procedures. Document the project's response path for an erasure request — typically a documented PR that adds an `erasure_log.csv` entry and propagates downstream on the next refresh.
+- **Honor parallel sovereignty frames.** For data about indigenous communities, the [CARE principles](https://www.gida-global.org/care) (Collective benefit, Authority to control, Responsibility, Ethics) sit alongside the FAIR principles. For data about other historically-surveilled populations, ask: would the affected community endorse this liberation, or is this strip-mining their data for an enterprise consumer? AGENTS.md should record the answer.
+- **Set out-of-scope uses explicitly.** A processed CSV can be cited for accountability journalism *and* used to feed predictive policing, enrichment-for-eviction, or immigration-enforcement tooling. The README and AGENTS.md should name uses the maintainers consider out-of-scope. This is not legally binding but it's the documented community norm.
+
+### Project-internal governance
+
+Once the project is live, it acquires its own governance surface: who can change the schema, who reviews refresh PRs, how disagreements get resolved.
+
+- **Schema-revision discipline.** Changes to `LONG_COLUMNS` or the pandera class are *contract changes* (see the schema-as-contract framing in [`data-modeling.md`](data-modeling.md#the-canonical-schema)). Require an entry in `docs/changelog.qmd` for every schema-revision PR; require a paragraph naming what breaks for downstream consumers.
+- **Concept-catalog amendments.** Adding a new cross-source equivalence is a contract change at the equivalence level. Require the caveats list to be non-empty and to name what is and isn't comparable (see [`data-modeling.md`](data-modeling.md#concept-catalogs)).
+- **Refresh-PR review norms.** Document who reviews refresh PRs and what they look at: row-count delta in `data/audit/summary-*.md`, new entries in `extraction_errors.json`, new "Empty sources" flags, reconcile mismatches. The current `refresh.yml.disabled` template includes a PR-body checklist; AGENTS.md should name who runs it.
+- **Conflict-resolution path.** When contributors from different functional teams disagree about a schema choice or a concept caveat — and they will, see Casemajor's "data culture as contested field" in [`movement-history.md`](movement-history.md#critical-perspectives-worth-absorbing) — AGENTS.md should name the documented escalation path. A "minority report" field in the dictionary, or a `disputes/` log directory, beats litigating in PR comments.
+
+### Downstream accountability
+
+A liberation project supplies data other actors will cite, build on, and sometimes get wrong. Accountability infrastructure isn't optional.
+
+- **Error-reporting path.** The README should name how downstream users flag errors (a GitHub issue template; an email; a Mastodon contact). The path should preserve the audit trail — corrections become entries in the changelog with the affected vintages named, not silent rewrites.
+- **Correction propagation.** When an error is confirmed, the fix lands in the next refresh PR (or an explicit hotfix PR); `provenance.csv` keeps the original sha256 and the corrected sha256 visible. Downstream consumers can detect a corrected vintage by checking the changelog.
+- **Citation guidance.** The README should include a BibTeX or equivalent so downstream uses are citeable; the citation should include the vintage tag (e.g., `v2024.11.01`) so a corrected dataset doesn't silently displace what a paper cited.
+- **Retraction-equivalent path.** If a vintage turns out to be unsalvageable (the source was withdrawn; the parser had a load-bearing bug that affects most rows), document the retraction in the changelog *and* keep the bad data available in the Git history. Don't quietly delete; downstream users may have cited it.
+
+### Where these decisions land in the project
+
+| Decision | Lives in |
+|---|---|
+| Source license + project license | `README.md` + `data/processed/provenance.csv` |
+| PII redaction policy | `scripts/publish.py` + `docs/data-dictionary.md` per-column caveats |
+| Out-of-scope uses | `README.md` *Movement context* section + `AGENTS.md` *Design decisions* |
+| Schema-revision discipline | `AGENTS.md` + `docs/changelog.qmd` template |
+| Refresh-PR review checklist | `.github/workflows/refresh.yml.disabled` PR body + `AGENTS.md` |
+| Error-reporting path | `README.md` *Contributing* section + GitHub issue template |
+| Citation guidance + vintage tagging | `README.md` *Citation* + GitHub Releases tag policy |
+
+Most of these the template already produces stubs for; the governance section's job is to make sure the stubs get filled in *before* the project ships a first vintage, not after the first complaint.
+
 ## `data/` directory discipline
 
 Four subdirectories, each with a `.gitkeep`:
