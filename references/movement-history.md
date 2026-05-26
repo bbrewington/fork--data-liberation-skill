@@ -197,6 +197,9 @@ Activist / movement tradition:
 - [BoulderPublicData/Election-Results](https://github.com/BoulderPublicData/Election-Results) — modern small-team liberation pattern
 - [ProPublica's data-bulletproofing guide](https://github.com/propublica/guides/blob/master/data-bulletproofing.md) — the journalistic standard for vetting a dataset before publishing it
 
+Consumer-side practice (what happens *after* a liberation ships — adjacent to this skill, not within it):
+- [NYT data-training](https://github.com/nytimes/data-training) — the *New York Times*' newsroom training materials for data journalists. Covers brainstorming story angles from a dataset, the verification practices reporters apply to avoid misreading data, and editorial review of data stories. Spreadsheet-first by audience (Google Sheets, not pandas), but the *methodological* content is what a complete liberation hands off to: a project that ships a tidy CSV and a data dictionary has done half the work; these materials describe the other half. Point downstream consumers here from the project's README rather than reinventing the consumer-side methodology in the pipeline's docs.
+
 Critical / scholarly tradition (the movement read from outside):
 - Schrock, *Civic hacking as data activism and advocacy: A history from publicity to open government data*, *New Media & Society*, 2016 — civic hacking's pre-2010 history
 - Baack, *Datafication and empowerment: How the open data movement re-articulates notions of democracy, participation, and journalism*, *Big Data & Society*, 2015 — open-source modulation framework
