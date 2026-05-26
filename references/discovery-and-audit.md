@@ -23,7 +23,7 @@ Each check below corresponds to a specific [data-quality dimension](data-modelin
 | Cross-source corroboration | Consistency |
 | Random-sample physical spot-check | Auditability |
 
-The documentation-and-contact checks are *state reconstruction* — the under-rotated, highest-leverage phase that happens before any measurement code is written. See [`data-modeling.md#pipeline-shape--three-phases-the-data-driven-tradeoff`](data-modeling.md#pipeline-shape--three-phases-the-data-driven-tradeoff).
+The documentation-and-contact checks are *state reconstruction* — the under-rotated, highest-leverage phase that happens before any measurement code is written. See [`data-modeling.md#pipeline-shape`](data-modeling.md#pipeline-shape).
 
 ### Source-level checks
 
@@ -65,7 +65,7 @@ The colleagues quoted in ProPublica's guide each contributed one durable practic
 | **Survey** | Source-level checks against publisher's own summary; methodology/provenance fact-finding; identifying the contact |
 | **Extract** | Sentinel-value handling in parsers; categorical consistency; physical spot-checks of the first parser's output |
 | **Tidy** | Date and geography range verification post-normalization; cross-source corroboration setup |
-| **Audit** | `audit.py` automates the easy checks (null rates, distinct values, suspicious counts); see [Audit](#audit) below |
+| **Audit** | `audit.py` automates the easy checks (null rates, distinct values, suspicious counts); see [Audit](#audit-what-came-in) below |
 | **Reconcile** | Top-line totals against the source's own published total; see [Reconciliation](#reconciliation) below |
 
 The Survey-phase checks are the cheapest and the most under-done. Lean into them.
@@ -365,88 +365,20 @@ Non-matching checks return a non-zero exit code, which fails the CI reconcile jo
 
 ## The recurring-refresh pattern (cron + PR)
 
-For recurring sources (annual SoV, monthly FOIA logs, weekly compensation pulls), the right shape is a GitHub Actions cron that runs `discover → fetch → clean → audit`, then opens a PR with the new data and audit report. Humans review the PR; nothing merges to main without inspection.
+For recurring sources (annual statements of vote, monthly FOIA logs, weekly compensation pulls), wire a GitHub Actions cron that runs `discover → fetch → clean → audit` and opens a PR with the new data and audit report. The template ships a ready-to-rename `refresh.yml.disabled`; the canonical pattern is captured there. Three decisions matter:
 
-### `.github/workflows/refresh.yml`
-
-The template ships this as `refresh.yml.disabled` (rename to enable). Skeleton:
-
-```yaml
-name: Refresh data
-
-on:
-  schedule:
-    - cron: "0 13 * * 1"   # Mondays 13:00 UTC; adjust per source cadence
-  workflow_dispatch:        # allow manual trigger
-
-jobs:
-  refresh:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-        with: { enable-cache: true }
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Discover and fetch
-        run: |
-          uv run python -m scripts.pipeline discover
-          uv run python -m scripts.pipeline fetch
-
-      - name: Clean and audit
-        run: |
-          uv run python -m scripts.pipeline clean --fail-on-empty
-          uv run python -m scripts.pipeline audit
-
-      - name: Open PR if data changed
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "Refresh data"
-          branch: data-refresh/${{ github.run_number }}
-          title: "Data refresh — automated"
-          body: |
-            Automatic data refresh.
-
-            Review checklist:
-            - [ ] Row-count delta in `data/audit/summary-*.md` matches expected.
-            - [ ] No new entries in `data/audit/extraction_errors.json`.
-            - [ ] No new flags in the audit "Empty sources" section.
-            - [ ] Reconcile (if enabled) still passes.
-          add-paths: |
-            data/original/**
-            data/processed/**
-            data/audit/**
-            docs/variables.*
-```
-
-### Cron cadence guidance
-
-Set the cron to slightly trail the publisher's typical posting day:
+**Cadence — slightly trail the publisher.** Faster than the publisher updates wastes compute and pollutes the audit history; lagging is fine because `workflow_dispatch` covers the impatient case.
 
 | Publisher cadence | Cron |
 |---|---|
-| Annual (post-certification) | `"0 13 1 11 *"` — Nov 1, 13:00 UTC, runs once per year |
+| Annual (post-certification) | `"0 13 1 11 *"` — Nov 1, 13:00 UTC |
 | Monthly | `"0 13 1 * *"` — 1st of each month |
 | Weekly | `"0 13 * * 1"` — Mondays |
-| On-demand only | Omit `schedule:`; keep `workflow_dispatch:` |
+| On-demand | Omit `schedule:`; keep `workflow_dispatch:` |
 
-A cadence that runs faster than the publisher updates is wasted compute and pollutes the audit history. A cadence that lags is fine — `workflow_dispatch` covers the impatient case.
+**PR, not commit-to-main.** Auto-commits make a silent change to published data. A PR forces a human pass on four signals: does the row-count delta in `data/audit/summary-*.md` match expectations? Any new entries in `extraction_errors.json`? Any new "Empty sources" flags? Did `reconcile.py` (if enabled) newly mismatch? Mature pipelines with strong reconcile coverage sometimes relax this to commit-to-main with audit-driven rollback; PR is the safer default and what BoulderPublicData, PUDL, and IPEDS-pipeline actually use.
 
-### Why PR, not commit-to-main
-
-Auto-commits to main mean a silent change to published data. A PR forces a human pass:
-
-- Look at the audit summary. Does the row-count delta make sense (one new vintage = one new chunk of rows)?
-- Check the "Empty sources" section. Did anything quietly stop working?
-- Look at the parser fixtures. Does the test suite still pass on the new fetched data?
-- If reconcile is enabled, did any checks newly mismatch? Investigate before merging.
-
-For very mature pipelines with established quality, some projects relax this to commit-to-main with audit-driven rollback. But the PR pattern is the safer default and what most civic projects (BoulderPublicData, PUDL, IPEDS-pipeline) actually use.
+**Path-scoped commits.** Stage `data/original/**`, `data/processed/**`, `data/audit/**`, and the auto-generated `docs/variables.*` files. Anything outside that scope means the workflow misbehaved.
 
 ## Common failure modes
 

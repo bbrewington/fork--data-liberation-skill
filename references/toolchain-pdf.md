@@ -235,7 +235,7 @@ A few patterns this skeleton illustrates that you should keep:
 - **Hash the source file** on every parse run and emit it on every row (or, more economically, into the per-extract provenance sidecar). This makes downstream errors traceable to the exact input file.
 - **`extracted_at` timestamp** — UTC ISO-8601. Required for provenance.
 - **`vintage`** as a column — the data was published in a particular year, possibly with that year's quirks.
-- **Vintage-specific parsing logic** is fine and expected. Resist the urge to write one parser that handles all years; you'll fight every special case forever. One parser per vintage, with shared helpers in `scripts/parsers/common.py`.
+- **Vintage-specific parsing logic** is fine and expected. Resist the urge to write one parser that handles all years; you'll fight every special case forever. One parser per vintage, with shared helpers in `scripts/parsers/_normalize.py` (regex / string transforms; see [`cleaning-and-standardization.md`](cleaning-and-standardization.md#6-standardization-and-normalization)).
 - **Return normalized long-form** at the boundary. The parser's job ends when it has produced a tidy DataFrame; the schema module's job is to validate it.
 
 ## Common failure modes and how to handle them
