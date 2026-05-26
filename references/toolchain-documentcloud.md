@@ -112,7 +112,25 @@ doc.embed_code()       # full <iframe> HTML
 doc.canonical_url      # plain link to the reader UI
 ```
 
-Inside a `.qmd` file, embed the source PDF next to its prose explanation:
+The plain full-document embed is the right default, but the embed URL accepts query parameters that change what the reader lands on — and a methodology page is *much* more legible when the embed opens on the exact page being discussed rather than the document's title page. Three useful variants:
+
+```html
+<!-- Open on a specific page -->
+<iframe src="https://embed.documentcloud.org/documents/{ID}/?embed=1&page=17"
+        width="100%" height="600"></iframe>
+
+<!-- Open on a specific note (annotation) by note ID -->
+<iframe src="https://embed.documentcloud.org/documents/{ID}/annotations/{NOTE_ID}/?embed=1"
+        width="100%" height="600"></iframe>
+
+<!-- Page-image only (no reader UI) — useful for a static thumbnail next to body text -->
+<img src="https://embed.documentcloud.org/documents/{ID}/pages/17-large.gif"
+     alt="SoV 2024 page 17 — Boulder County precinct totals">
+```
+
+The page-anchored iframe is the workhorse. Combine with a permalinked text-selection URL — the DocumentCloud reader supports `?selection={start}-{end}` URL fragments that highlight a text range — and a methodology paragraph can deep-link into the exact paragraph of the original that the processed CSV's column was derived from.
+
+Inside a `.qmd` file, the canonical pattern is to keep iframe HTML in per-document partial files under `docs/_includes/` and `{{< include >}}` them from the prose pages, so the same embed can appear in multiple places (methodology page, vintage changelog entry, data-dictionary caveat) without copy-pasting the iframe markup. The partial files are tiny — typically 3-line HTML stubs — but factoring them out keeps the `.qmd` source readable:
 
 ```markdown
 ## How the 2024 results were extracted
@@ -121,10 +139,74 @@ The published Statement of Vote ([source]({{< var sov_2024_url >}})) is
 a 412-page PDF. Pages 17–143 carry the precinct-by-contest tables that
 became `data/processed/elections.csv`.
 
-{{< include _sov_2024_embed.html >}}
+{{< include _includes/sov_2024_pages_17_to_143_embed.html >}}
+
+The vote-totals row at the bottom of every precinct block is the
+authoritative figure `reconcile.py` verifies against.
 ```
 
-This is what turns a Quarto methodology page from *prose about the data* into *prose with the original document inline*. The LFS-cannot-serve-from-Pages constraint (see [`toolchain-lfs.md`](toolchain-lfs.md)) is what makes DocumentCloud structurally important here: the Quarto site can embed DocumentCloud iframes without serving the PDFs from `gh-pages`.
+For a *comparison* layout — two source vintages side by side on the same Quarto page — Quarto's column layout works directly with iframes:
+
+```markdown
+:::: {.columns}
+::: {.column width="50%"}
+**2020 General**
+{{< include _includes/sov_2020_embed.html >}}
+:::
+::: {.column width="50%"}
+**2024 General**
+{{< include _includes/sov_2024_embed.html >}}
+:::
+::::
+```
+
+Two practical notes on rendering: (1) Iframes are *not* captured by Quarto's `freeze: auto` cache — every render fetches DocumentCloud live. That's the right default (the embed reflects the current state of the source document) but it means the rendered site will have broken embeds if the network is down at render time or if the document has been deleted from DocumentCloud. Pin the document IDs in `_quarto.yml`'s `var` block or in a per-source YAML so a typo doesn't silently break the build. (2) For PDF output of the Quarto site, iframes don't render — replace them at PDF-build time with the page-image variants (the `pages/N-large.gif` URLs) plus a permalink to the live reader.
+
+The LFS-cannot-serve-from-Pages constraint (see [`toolchain-lfs.md`](toolchain-lfs.md)) is what makes DocumentCloud structurally important here: the Quarto site can embed DocumentCloud iframes without serving the PDFs from `gh-pages`. The methodology page describes the data; the iframe shows the data; the underlying file lives on a third host that handles the OCR and the reader UI for free.
+
+## Splitting large documents before upload
+
+DocumentCloud accepts large PDFs but its sweet spot is documents in the ~50-page range. Multi-hundred-page PDFs (the typical scale of a county Comprehensive Plan, a multi-year fiscal report, or a complete EIS) hit three real problems: (1) server-side OCR takes minutes-to-hours and occasionally fails silently; (2) the reader UI gets sluggish over ~500 pages, especially on mobile; (3) the embed's page-anchored URL is less useful when the relevant page is one of two thousand. Splitting upstream — before upload — solves all three.
+
+Splitting is a *parser-side* concern, not a DocumentCloud concern. The immutable-originals discipline (`data/original/` is write-once) means splits live as derived files. Two conventions work:
+
+- **Split-at-upload**, no on-disk derivative: the parser reads the whole original, slices into per-section page ranges in memory, and uploads each slice as a separate DocumentCloud document. The original PDF stays whole on disk; no `data/original/` mutation. Simplest; right default for most projects.
+- **Split-and-persist**, derivative on disk: derived splits live under `data/original/<source>/<vintage>/_splits/` (or `data/processed/_splits/` if you prefer the derivative-bucket framing). Each split file gets its own entry in `manifest.json` with a `parent_sha256` field pointing back at the unsplit original. Heavier; useful when splits get cited or re-used independently of the parent.
+
+For Python-native splitting, [`pypdf`](https://github.com/py-pdf/pypdf) is the canonical library (formerly PyPDF2):
+
+```python
+from pypdf import PdfReader, PdfWriter
+
+reader = PdfReader("data/original/boulder/sov-2024-general.pdf")
+splits = [
+    ("sov-2024-general_summary",          0, 16),    # cover + summary
+    ("sov-2024-general_precincts",       16, 143),   # the precinct tables
+    ("sov-2024-general_recount_appendix", 143, 412), # appendices
+]
+for name, start, end in splits:
+    writer = PdfWriter()
+    for i in range(start, end):
+        writer.add_page(reader.pages[i])
+    with open(f"/tmp/{name}.pdf", "wb") as f:
+        writer.write(f)
+```
+
+For command-line splitting in shell pipelines, [`qpdf`](https://github.com/qpdf/qpdf) (`qpdf input.pdf --pages . 17-143 -- output.pdf`) and [`pdftk`](https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/) (`pdftk input.pdf cat 17-143 output output.pdf`) are the durable choices — pick whichever is already in the project's container or system image. Both handle multi-gigabyte PDFs without loading them into memory.
+
+The harder question is *where* to split. Three strategies, in order of robustness:
+
+- **By structural marker** (most robust). Use `pdfplumber` to scan the PDF for a known section boundary — "PRECINCT REPORT" header, a fiscal-year-divider page, a contest-name change — and split at those page indices. The split logic lives in `scripts/parsers/_split.py` (or inline in the parser); the markers belong in the parser's docstring or `AGENTS.md` so a future contributor knows why the page boundaries are what they are. Vintage-specific: different years may have moved the marker.
+- **By section in a table of contents** (when the source has a parseable ToC). `pypdf` exposes `reader.outline` — if the publisher included PDF bookmarks, those are the right split points and they survive across vintages if the publisher's template stayed put.
+- **By fixed page count** (last resort). 100-page chunks with a 5-page overlap so context isn't lost at the boundary. Easy to script, terrible for citation — the chunks have no semantic meaning and a reader following a permalink lands on an arbitrary mid-document page.
+
+Whichever strategy, the split chunks need to carry their lineage in provenance so the chain of custody back to the original survives. Conventions:
+
+- **Naming.** `<original-stem>_<descriptor>.pdf` (`sov-2024-general_precincts.pdf`) when splitting by marker; `<original-stem>_pages-N-to-M.pdf` when splitting by page range. Names are stable across re-runs so the upload step's dedup-by-sha256 stays reliable.
+- **`provenance.csv` extensions.** Add `parent_sha256` (the unsplit original's hash), `parent_documentcloud_url` (a link to the unsplit version if it's also on DocumentCloud), and `page_range` (`17-143`) columns. The processed-CSV-row-to-source-page chain becomes: row → `(source, vintage)` → provenance entry → split DocumentCloud URL → page within the split.
+- **`AGENTS.md` *Deployment surface* note.** Document the split convention per source — "Boulder SoV PDFs split into summary / precincts / appendices; the precincts split is the citable one; the appendices split is uploaded as `organization` because the recount narratives reference jurors by name" — so the access-level and citation choices stay legible.
+
+A split is not a transformation in the parser sense — it doesn't change pixels or text. It's a packaging decision at the *publish* boundary. The split's content is the original's content; the value is purely that readers can find what they need without scrolling through 412 pages. Treat splitting as part of the upload step, not the cleaning step.
 
 ## Access levels and provenance chain-of-custody
 
