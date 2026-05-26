@@ -6,28 +6,24 @@ The patterns here are distilled from BoulderPublicData/Election-Results (where `
 
 ## Pre-extraction bulletproofing
 
-Before writing a single parser, vet the source itself. ProPublica's data-bulletproofing guide distills the practice across a decade of accountability journalism; the checklist below adapts it for the liberation workflow. Most of these are five-minute checks; skipping them buys hours of debugging later.
+Before writing a single parser, vet the source itself. ProPublica's data-bulletproofing guide distills this practice; the checklist below adapts it for the liberation workflow. Most of these are five-minute checks; skipping them buys hours of debugging later.
 
-ProPublica's practitioner checklist has direct counterparts in the data-quality research literature. The two bodies of work rarely cite each other; reading them side by side shows they describe the same craft from journalist's and engineer's vantages, and naming the correspondence makes the checklist defensible to the engineer and the engineer's framework usable to the journalist.
+Each check below corresponds to a specific [data-quality dimension](data-modeling.md#data-quality) — naming the dimension makes the check defensible to engineers, and using the engineer's framework keeps the journalist honest about what's being measured:
 
-**Each ProPublica check maps onto a specific Cai/Zhu (2015) dimension and Batini (2009) phase:**
+| Check | Dimension it serves |
+|---|---|
+| Record count verification (watch for the 65,536-row Excel ceiling, powers of two) | Completeness |
+| Top-line totals match the publisher's claim | Accuracy |
+| Date and geography range checks | Timeliness; Relevance |
+| `GROUP BY` every categorical field to surface spelling drift | Consistency |
+| Find the publisher's codebook / methodology / statute | Usability (Documentation, Metadata) |
+| Identify the records officer / contact | Usability (Credibility) |
+| Discriminate blanks from sentinel values (`-9`, `9999`, `1900-01-01`) | Completeness (with the three-way *exists-but-unknown* / *does-not-exist* / *unknown-whether-exists* distinction in the data dictionary) |
+| Demand questionnaires for survey-derived data | Usability (Credibility) |
+| Cross-source corroboration | Consistency |
+| Random-sample physical spot-check | Auditability |
 
-| ProPublica check | Cai/Zhu dimension → element | Batini phase / sub-step |
-|---|---|---|
-| Record count verification (watch for the 65,536-row Excel ceiling, powers of two) | *Reliability* → Completeness; "whether the deficiency of a component will impact use of the data" | Assessment → *measurement of quality* |
-| Top-line totals match the publisher's claim | *Reliability* → Accuracy; "data representation reflects the true state of the source information" | Assessment → *measurement of quality* + reference comparison |
-| Date and geography range checks | *Availability* → Timeliness; *Relevance* → Fitness | Assessment → *DQ requirements analysis* |
-| `GROUP BY` every categorical field to surface spelling drift | *Reliability* → Consistency; "data remain consistent and verifiable" | Improvement → *standardization* (data-driven technique) |
-| Find the publisher's codebook / methodology / statute | *Usability* → Definition/Documentation; *Usability* → Metadata | State reconstruction phase |
-| Identify the records officer / contact | *Usability* → Credibility; "data come from specialized organizations" | State reconstruction phase |
-| Discriminate blanks from sentinel values (`-9`, `9999`, `1900-01-01`) | *Reliability* → Completeness; the three-way missingness — exists-but-unknown / does-not-exist / unknown-whether-exists (Batini's distinction) | Assessment → *error localization* |
-| Demand questionnaires for survey-derived data | *Usability* → Credibility (objective + subjective components of believability) | State reconstruction → identification of critical areas |
-| Cross-source corroboration | *Reliability* → Consistency; "data and the data from other data sources are consistent or verifiable" | Improvement → *record linkage*, *data and schema integration* |
-| Random-sample physical spot-check | *Reliability* → Auditability; "auditors can fairly evaluate data accuracy and integrity within rational time and manpower limits" | Assessment + improvement *monitoring* |
-
-**Ehrlinger & Wöß (2022) corroborate the practitioner intuition empirically.** Their 667-tool survey found that the checks ProPublica makes by hand are exactly the ones commercial DQ tools chronically under-implement: **association rule mining is supported by zero of 13 evaluated tools, correlation analysis by one (Aggregate Profiler), multi-column outlier detection beyond simple visualization by none, dependency discovery (UCC/IND/FD) substantively by only two (Informatica DQ, Experian Pandora), no tool implements a timeliness metric, and DQ monitoring is a paywalled premium feature in general-purpose tools**. The journalist's `GROUP BY`-and-eyeball recommendation is the bulk-tool market's blind spot. A small Python/pandas/DuckDB `audit.py` plus a diff-able `data/audit/summary-*.md` over each refresh closes the gap that 13 expensive tools leave open.
-
-The deeper convergence: Batini's *state reconstruction* phase ("collecting contextual information on organizational processes and services, data collections and related management procedures, quality issues and corresponding costs") is exactly what ProPublica's "find the documentation, identify the contact, demand questionnaires" set of checks performs. The two literatures use different vocabularies for the same five-minute-but-load-bearing pre-extraction work. See [`data-modeling.md#dq-methodologies--the-batini-survey`](data-modeling.md#dq-methodologies--the-batini-survey) for the full phase decomposition.
+The documentation-and-contact checks are *state reconstruction* — the under-rotated, highest-leverage phase that happens before any measurement code is written. See [`data-modeling.md#pipeline-shape--three-phases-the-data-driven-tradeoff`](data-modeling.md#pipeline-shape--three-phases-the-data-driven-tradeoff).
 
 ### Source-level checks
 
