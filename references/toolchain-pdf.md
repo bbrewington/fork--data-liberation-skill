@@ -30,7 +30,7 @@ A quick sanity check: open the PDF in a viewer and try to **select and copy text
 
 ## pdfplumber — the default for born-digital PDFs
 
-[`pdfplumber`](https://github.com/jsvine/pdfplumber) is the workhorse. It exposes characters with positions, lines, rectangles, and curves, and offers a configurable table-detection pass that infers rows and columns from spatial layout. It is the right default whenever the PDF has a text layer.
+[`pdfplumber`](https://github.com/jsvine/pdfplumber) is the workhorse. It exposes characters with positions, lines, rectangles, and curves, and offers a configurable table-detection pass that infers rows and columns from spatial layout. It is the right default whenever the PDF has a text layer. (Pdfplumber is built on [`pdfminer.six`](https://github.com/pdfminer/pdfminer.six), the community-maintained text-extraction engine — drop to pdfminer.six directly when pdfplumber's higher-level abstractions get in the way, but the rest of this section assumes the pdfplumber API.)
 
 ### Minimal idiomatic use
 
@@ -160,6 +160,21 @@ Image quality at the input is the single biggest factor in OCR output quality. S
 - **Training a custom model** is rarely worth it for civic data; the [tesseract training guide](https://github.com/neiths/tesseract_training_guide) documents the path if you do need it.
 
 OCR'd output should always be **flagged as such in provenance** (e.g., `extraction_quality = "ocr_tesseract"` in the provenance sidecar) so downstream users can apply extra skepticism.
+
+### When tesseract isn't enough
+
+Tesseract remains the default because it's bundled in every Linux distro, has 100+ language packs, and tunes well via PSM and character-whitelist flags. But several modern OCR engines outperform it on specific failure modes — reach for them in this order:
+
+| If tesseract is failing on… | Try |
+|---|---|
+| **Degraded or low-resolution scans** where preprocessing isn't enough | [**PaddleOCR**](https://github.com/PaddlePaddle/PaddleOCR) — production-grade engine with 80+ languages; reliably better than tesseract on noisy or rotated scans. Heavier install (PaddlePaddle wheel) but the accuracy bump is usually worth it. Also the backend kreuzberg uses by default. |
+| **Mixed printed + handwritten** or **complex layouts where reading order matters** | [**Surya**](https://github.com/VikParuchuri/surya) — newer (VikParuchuri); does OCR + line / paragraph / reading-order detection in one pass. Pure-Python install, fast on CPU. Strong on multi-column documents. |
+| **High-throughput batch processing** where install simplicity beats peak accuracy | [**EasyOCR**](https://github.com/JaidedAI/EasyOCR) — `pip install easyocr` and you have a working multi-language OCR. Less tunable than tesseract, but the lowest-friction option when you just need text out of a thousand scans. |
+| **Production deployment with a clean Python API** for documents (not just images) | [**docTR**](https://github.com/mindee/doctr) — explicit "alternative for Tesseract" from Mindee; ships text-detection + text-recognition models with a higher-level document API than tesseract exposes. Worth it for projects building a sustained OCR service. |
+
+Two-tool combinations also help: **[`OCRmyPDF`](https://github.com/jbarlow83/OCRmyPDF) + pdfplumber** is the canonical pattern for a scanned-PDF corpus that needs to be searched *and* extracted. OCRmyPDF wraps tesseract (or any tool above) to add a text layer *to the PDF in place* — the scanned PDF becomes a born-digital PDF that pdfplumber can then parse normally. This collapses the otherwise-awkward "OCR the page, save text separately, re-attribute text to coordinates" three-step into one. The original is preserved (OCRmyPDF writes a sidecar `.ocr.pdf`), so the immutable-originals discipline holds.
+
+Update `extraction_quality` in `provenance.csv` to name the engine used (`ocr_paddleocr`, `ocr_surya`, `ocrmypdf`, etc.) — downstream users apply different skepticism levels depending on which engine produced the text.
 
 ## Layout analysis — when tables aren't enough
 
