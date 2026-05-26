@@ -4,6 +4,45 @@ This reference covers the structured-document formats that aren't tabular but ar
 
 For *scraping* HTML pages (managing dynamic content, polite request rates, cached fetches), see [`toolchain-scraping.md`](toolchain-scraping.md). This reference assumes you already have the document on disk or in a string.
 
+## The document-understanding design space
+
+A liberation project chooses among per-format parsers (the rest of this reference) and *unified document extractors* (modern libraries that try to handle many formats end-to-end). Both have a role; choosing well saves work.
+
+**What civic data actually faces**, framed against the [awesome-document-understanding](https://github.com/tstanislawek/awesome-document-understanding) catalog of document-AI research:
+
+| Document type the source is | Civic examples | Default approach |
+|---|---|---|
+| **Born-digital structured** — XML, JSON, RSS, EDGAR / USPTO XBRL filings | Agency XML dumps, open-data portals, regulatory filings | `lxml`, `pd.read_xml`, `pd.json_normalize` — sections below |
+| **Born-digital narrative HTML** — clean DOM with `<table>` or `<div>` rows | Agency dashboards, FOIA case logs, legislative records | `pandas.read_html` for tables; `selectolax` for layout-as-tables — sections below |
+| **Born-digital PDF with text layer** — selectable text, possibly with tables | Statements of vote, annual reports, budget books | `pdfplumber` / `camelot` — see [`toolchain-pdf.md`](toolchain-pdf.md) |
+| **Scanned image PDF** — no text layer | Older Statements of Vote, scanned FOIA responses, faxed records | OCR via `tesseract` + `pdf2image`, or a VLM-based pipeline via `docling` |
+| **Visually-rich documents** — layout *bears meaning* (a field's position on the page is part of its identity) | Invoices, applications, structured forms, agency cover sheets | `docling` (layout-aware) or a key-information-extraction model |
+| **Mixed-media documents** — PDFs with embedded narrative + tables + footnotes + figures | Comprehensive plans, environmental impact statements, court opinions | `docling` for unified extraction with reading-order preserved; per-component decomposition if you need to attribute each row to a page region |
+
+The awesome-document-understanding repo names additional research problems — *Key Information Extraction*, *Document Layout Analysis*, *Document Question Answering* — that civic-data work occasionally needs. The pragmatic rule: for QA-over-documents (asking natural-language questions of a corpus), step out of this skill's scope and into a RAG / agent layer that reads the *liberated* dataset, not the originals. The skill's job is to produce the clean structured input that QA layers consume.
+
+## Modern unified extractors — when one tool is enough
+
+Two libraries have emerged as the post-2024 defaults for "I want this document parsed end-to-end without writing per-format code":
+
+- **[docling](https://github.com/docling-project/docling)** (LF AI & Data, IBM origin) — best-in-class for *PDF understanding*. Parses page layout, reading order, table structure, code blocks, formulas, image classification. Outputs the unified `DoclingDocument` representation with exports to Markdown, HTML, lossless JSON, and `DocTags` (an LLM-friendly intermediate). Native VLM support via [GraniteDocling](https://huggingface.co/ibm-granite/granite-docling-258M) and other vision-language models. Supports PDF, DOCX, PPTX, XLSX, HTML, images, LaTeX, and several application-specific XML schemas (USPTO patents, JATS articles, XBRL financial reports). Ships an MCP server and integrations with LangChain / LlamaIndex / Haystack / Crew AI. Reach for `docling` when the source has complex layout, embedded code or formulas, multi-column reading order that matters, or when you want a markdown-or-JSON dump suitable for downstream RAG without writing per-format code.
+
+- **[kreuzberg](https://github.com/kreuzberg-dev/kreuzberg)** — polyglot (Python / Rust / Node / WASM / Java / Go / C# / PHP / Ruby / Elixir / R / Dart / Kotlin / Swift) high-throughput extractor across 90+ formats. Rust core with PDFium + Tesseract / PaddleOCR. Includes a *code intelligence* mode with semantic chunking across 300+ programming languages. Faster than docling for bulk extraction at scale, less PDF-understanding depth. Reach for `kreuzberg` when the project is *bulk-extracting* a large heterogeneous corpus, when extraction needs to run from a non-Python service (the polyglot bindings are real), or when the source mix includes a lot of formats that don't fit one specialist tool.
+
+**When to skip both and use per-format tools:** when you need fine control over what comes out — e.g., a specific table on page 7 with the exact column boundaries pinned by reproducible `explicit_vertical_lines`, or a precise XPath against a namespaced XML schema. Per-format tools (pdfplumber, lxml, selectolax) give you that control; docling and kreuzberg trade some of it for breadth. The decision tree:
+
+```
+Need one specific table or selector, reproducibly       → per-format tool
+Need a markdown dump of a complex layout-rich PDF       → docling
+Need bulk extraction across many heterogeneous formats  → kreuzberg
+Need a layout-aware embedding for downstream RAG        → docling (export DocTags)
+Need scanned-PDF text with no per-source tuning         → docling (VLM pipeline) or kreuzberg
+Need structured key/value extraction from forms         → docling + a KIE prompt, or a dedicated KIE model
+Need fine control over OCR config per source/vintage    → tesseract directly — see toolchain-pdf.md
+```
+
+The rest of this reference covers the per-format tools that the right-hand side of that tree calls into.
+
 ## HTML
 
 The web's lingua franca, and a surprisingly common civic-data format: agency reports rendered as HTML pages, FOIA logs in `<table>` form, dashboards backed by data tables, legislative records with one bill per `<div>`. Two paths into HTML, in increasing order of complexity:

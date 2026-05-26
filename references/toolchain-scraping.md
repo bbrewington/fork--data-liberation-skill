@@ -2,7 +2,18 @@
 
 This reference is for the case where the data is on a website rather than in a file you can download. Government dashboards, court records, agency results pages, real-time logs, FOIA case trackers — these are common civic data sources, and many of them publish only as HTML.
 
-The structure here follows the CU Information Science *Web Data Science Book* and its course materials: ethics first, then archives (often the fastest path is the one that doesn't involve a live request at all), then protocols (HTTP discipline), then dynamic pages, then government data specifically.
+The structure follows the CU Information Science [INFO4871 *Web Data Science* course](https://github.com/cuinfoscience/INFO4871-Fall2024) and its weekly progression: ethics first, then archives (often the fastest path is the one that doesn't involve a live request at all), then protocols (HTTP discipline), then dynamic pages, then government data specifically.
+
+## Scraping in the post-API age
+
+For about a decade the canonical research-data move was *use the platform API*. That era is over. Twitter / X shut down free academic access in 2023; Reddit's API repricing in 2023 ended large-scale academic use; Facebook deprecated CrowdTangle and Pages-Public-Content APIs; YouTube and TikTok tightened to single-digit-percent-of-corpus sampling. The aggregate effect — described in the [INFO4871 *Post-API Age* materials](https://github.com/cuinfoscience/INFO4871-Fall2024/tree/master/Week%2002%20-%20Post-API%20Age) — is that scraping has returned to the methodological mainstream for any research or accountability project that needs corpus-scale public data. The civic-data version of this is even sharper: government APIs were always thin, and the bulk-download alternative was always sparse, so civic projects never left the scraping era.
+
+This shapes the skill's posture:
+
+- **Scraping is the default**, not the fallback. The toolchain decision tree starts with "what's the most polite way to scrape this?" not "is there an API?"
+- **The legal frame matters more than it used to.** Without the consent-by-API-key fiction, the project has to defend each scrape on its own merits — robots.txt, ToS, jurisdiction, public-record statutes. The *Ethics and consent* section below is not optional reading.
+- **Archives are the first-class fallback.** When a publisher locks down (or just changes their HTML), the Wayback snapshot is often the only retrievable form. Treat Internet Archive as part of the toolchain, not an emergency.
+- **Documentation of method is part of the artifact.** Post-API scraping is contestable in ways API access wasn't; documenting the legal basis, the request budget, and the fixture-pinned selectors *in `AGENTS.md`* is what makes a scrape defensible six months later.
 
 ## Ethics and consent
 
