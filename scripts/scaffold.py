@@ -47,8 +47,8 @@ DEFAULT_TEMPLATE_REPO = "https://github.com/brianckeegan/data-liberation-templat
 # The human-readable tag this corresponds to lives in DEFAULT_TEMPLATE_TAG below
 # (for messaging only). See RELEASING.md for the bump procedure when cutting a
 # new skill release.
-DEFAULT_TEMPLATE_VERSION = "cabbb935017e9c437bcef3c2b4783f6d66071655"
-DEFAULT_TEMPLATE_TAG = "v0.2.0"
+DEFAULT_TEMPLATE_VERSION = "72b202020c12056f19c828bff0b619cda5aadf64"
+DEFAULT_TEMPLATE_TAG = "v0.3.0"
 
 # File suffixes we treat as text (substitute placeholders). Anything else is
 # copied byte-for-byte.
