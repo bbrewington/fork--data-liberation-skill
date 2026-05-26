@@ -438,6 +438,22 @@ The template files contain Jinja-style placeholders that `scripts/scaffold.py` (
 
 The template uses these placeholders sparingly — most of the template is real, runnable content. The placeholders fill in identifiers and human-readable strings, not logic; the substitution is plain `str.replace`, so there's no conditional rendering. Toolchain-specific guidance lives in this skill's `references/toolchain-*.md`, not in the generated project.
 
+## Architectural principles
+
+A short list of cross-cutting principles the skill enacts everywhere. The vocabulary is borrowed from [GROBID's design principles](https://grobid.readthedocs.io/en/latest/Principles/) — GROBID has been doing scientific-document extraction since ~2008, and its lessons generalize past its specific domain. Each principle names a stance the skill already takes across multiple files; reading them together explains *why* the skill looks the way it does.
+
+- **Cascade of specialized stages, not a monolithic extractor.** GROBID decomposes extraction into a series of small sequence-labeling models, each tuned for one document region. This skill's analog: **per-source × per-vintage parsers**, plus the 9-step cleaning pipeline in [`cleaning-and-standardization.md`](cleaning-and-standardization.md), plus the source-extraction / transformation / sink-publication role decomposition. Resist the urge to write one parser that handles everything; resist the urge to roll all cleaning into one function. Diagnosis-by-stage is what cascading buys you.
+
+- **Work with layout tokens, not raw text.** GROBID's models operate on tokens that carry position, font, and bounding-box information, not just Unicode. This skill's analog: **pdfplumber's character-level coordinates, camelot's ruled-grid detection, docling's layout-aware DoclingDocument, the `--psm` and bounding-box configuration in the OCR section, the `selectolax` selectors that bind to *structural* classes**. Where the source has visual structure that bears meaning, the parser keeps it. Throwing away layout to recover plain text first and reconstruct second is the failure mode.
+
+- **Small high-quality fixtures beat large auto-generated ones.** GROBID achieves competitive accuracy with ~30-100× less training data than peers by manually curating it. This skill's analog: **`tests/fixtures/<source>_<vintage>_small.<ext>`** holding *real* artifacts, plus the `test_top_line_total` reconciliation tests against known totals. One hand-curated fixture per vintage with assertion against the published total catches regressions that 10× the synthetic-data volume would miss. Quality of the fixture > quantity of the corpus.
+
+- **Evaluation under realistic distribution, not training distribution.** GROBID holds out evaluation sets that follow the *actual* document distribution, because training distribution undersamples common cases. This skill's analog: **`reconcile.py` re-opens the *original* artifact and computes top-line totals from it** — independent of the parser's path through the data. The recurring-refresh PR's audit diff is the same idea: each refresh is evaluated against the source's current state, not the schema the parser was written against.
+
+- **Default fast, opt into precision.** GROBID defaults to CRF for speed and offers deep-learning models when accuracy matters more than throughput. This skill's analog: **start with rule-based pdfplumber / camelot, escalate to PaddleOCR / docTR / Surya when tesseract fails, escalate to docling when classical methods can't handle the layout, escalate to VLMs only when nothing else works** (see the decision trees in [`toolchain-pdf.md`](toolchain-pdf.md) and [`toolchain-documents.md`](toolchain-documents.md)). The expensive tool is the second pass for the hard subset; the cheap tool is the first pass for the easy 80%.
+
+These principles are not novel — they're how every mature document-extraction project that has lasted longer than a single grad-student cycle ended up structured. Naming them lets a reviewer (or a future agent) see the architecture as a coherent stance rather than as five independent file conventions.
+
 ## Conventions worth defending
 
 The handful of decisions that matter most and are easy to get wrong:
