@@ -1,6 +1,6 @@
 # Toolchain: Datasette + sqlite-utils
 
-The **queryable data interface** layer of a liberation project's three publishing surfaces (the other two: [`toolchain-quarto.md`](toolchain-quarto.md) for documentation, [`toolchain-lfs.md`](toolchain-lfs.md) for bulk distribution).
+The **queryable data interface** layer of a liberation project's four publishing surfaces (the other three: [`toolchain-quarto.md`](toolchain-quarto.md) for documentation, [`toolchain-lfs.md`](toolchain-lfs.md) for bulk distribution, [`toolchain-documentcloud.md`](toolchain-documentcloud.md) for the source documents with reader-facing OCR + embeds + permalinks).
 
 [Datasette](https://datasette.io/) turns a SQLite database into a queryable web app with SQL editor, facet browsing, JSON API, and one-command deploy. [`sqlite-utils`](https://sqlite-utils.datasette.io/) is the workhorse for getting tidy CSV/Parquet into SQLite. The patterns here come from the [PyCon 2023 SQLite tutorial](https://sqlite-tutorial-pycon-2023.readthedocs.io/) and Simon Willison's "Baked Data" architecture that powers Niche Museums, TILs, and PUDL's published instance.
 

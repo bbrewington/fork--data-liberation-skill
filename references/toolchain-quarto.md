@@ -1,6 +1,6 @@
 # Toolchain: Quarto + GitHub Pages
 
-The **documentation site** layer of a liberation project's three publishing surfaces (the queryable data interface is [`toolchain-datasette.md`](toolchain-datasette.md); bulk distribution is [`toolchain-lfs.md`](toolchain-lfs.md)).
+The **documentation site** layer of a liberation project's four publishing surfaces (queryable data interface: [`toolchain-datasette.md`](toolchain-datasette.md); bulk distribution: [`toolchain-lfs.md`](toolchain-lfs.md); source documents with reader-facing OCR + embeds: [`toolchain-documentcloud.md`](toolchain-documentcloud.md) — Quarto pages embed DocumentCloud iframes for inline access to source PDFs).
 
 [Quarto](https://quarto.org/) authors `.qmd` files (Markdown with executable code blocks in Python, R, Julia, or Observable JS), renders to HTML / PDF / Word, and publishes to GitHub Pages with one command. The result is a static site sitting alongside the GitHub repo, free to host, with clean URLs the project can cite.
 
