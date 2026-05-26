@@ -230,7 +230,7 @@ The pattern that works (after Woods et al. 2024's maintenance-work-order study):
 
 The audit's job, then, is not to clean these records but to report: *N records had the verb match the structured fields, M had mismatches (catalogued by pattern), K had no verb (inferred), L could not be classified.*
 
-## Pipeline shape — three phases, the data-driven tradeoff
+## Pipeline shape
 
 Two complementary lenses; the same artifacts read by each.
 

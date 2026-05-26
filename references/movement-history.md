@@ -76,106 +76,47 @@ The skill's six-phase workflow naturally covers *Request* (discover/fetch) and *
 
 ## Academic framing
 
-The activist tradition has a methodological counterpart in the document analysis and data engineering research literature. Three threads matter for this skill.
+The skill's scoping decisions trace to three durable ideas from the methodology literature. Each one is operational, not theoretical — they're named here so the skill's commitments are auditable.
 
-### CRISP-DM and its descendants
-
-[CRISP-DM](https://www.ibm.com/docs/en/spss-modeler/saas?topic=guide-data-understanding) (Cross-Industry Standard Process for Data Mining), drafted in the late 1990s and now ubiquitous, divides a data project into six phases: business understanding, **data understanding**, **data preparation**, modeling, evaluation, **deployment**. This skill targets the bolded three — the rest belong to the analyst after liberation is done.
-
-The data-understanding phase has long been the under-specified one. CRISP-DM names it but offers little methodological guidance; Holstein, Spitzer, Hoell, Vössing, and Kühl (2024, ECIS) propose [a five-dimension framework](https://aisel.aisnet.org/ecis2024/) that fills this gap:
-
-| Dimension | What it covers |
-|---|---|
-| **Foundations** | Infrastructure, provenance, characterization (basic descriptive statistics, metadata) |
-| **Collection & Selection** | What data to gather; what subsets to keep; identifying gaps |
-| **Contextualization & Integration** | Linking data to domain knowledge; integrating multiple sources |
-| **Exploration & Discovery** | Iteratively examining the data to surface clusters, patterns, anomalies |
-| **Insights** | Documentation artifacts (collection report, description report, quality report); evaluating data quality and deciding whether to proceed |
-
-The Holstein framework is descriptive — it names the dimensions that any data understanding effort traverses. The contribution of this skill is to make the traversal **operational**: each phase of the liberation workflow produces specific artifacts (Survey notes ≈ Holstein "Insights"; the data dictionary ≈ "Foundations"; the concept catalog ≈ "Contextualization & Integration"; `audit.py` output ≈ "Exploration & Discovery").
+**CRISP-DM and what this skill targets.** The Cross-Industry Standard Process for Data Mining (Wirth & Hipp 2000) divides a data project into six phases: business understanding, data understanding, data preparation, modeling, evaluation, deployment. This skill targets **data understanding, preparation, and deployment** and deliberately stops short of modeling — the rest belongs to the analyst after liberation is done. The CRISP-DM framing also names the under-specified phase: *data understanding*. Holstein et al.'s (2024) five-dimension expansion of it (Foundations / Collection & Selection / Contextualization & Integration / Exploration & Discovery / Insights) maps roughly onto the skill's artifacts — Survey notes ≈ Insights; data dictionary ≈ Foundations; concept catalog ≈ Contextualization; `audit.py` output ≈ Exploration. The point isn't the taxonomy; it's that the artifacts answer the questions the phase poses.
 
 ### Table Understanding (TU)
 
-The document analysis research community has spent thirty-plus years on the table parsing problem. The canonical decomposition, surveyed by [Shigarov (2023, *WIREs Data Mining and Knowledge Discovery*)](https://doi.org/10.1002/widm.1482), distinguishes two top-level subproblems and seven tasks:
+A useful vocabulary when surveying a new source. The document-analysis community decomposes the table problem into two subproblems and seven tasks (Shigarov 2023):
 
 ```
 Table Understanding (TU)
 ├── Table Extraction (TE)
-│   ├── Table Detection (TD)              <- find table regions in the document
+│   ├── Table Detection (TD)              <- find table regions
 │   ├── Table Structure Recognition (TSR) <- recover rows, columns, cells
 │   ├── Table Functional Analysis (TFA)   <- header vs data; cell roles
 │   └── Table Structural Analysis (TSA)   <- relationships between cells
 └── Table Interpretation (TI)
-    ├── Table Canonicalization (TC)       <- to a relational form
+    ├── Table Canonicalization (TC)       <- to relational form
     ├── Table Normalization (TN)          <- to 3NF; entity resolution
     └── Semantic Table Interpretation (STI) <- match to a knowledge graph
 ```
 
-Practical liberation work touches all of TE plus the canonicalization and normalization portions of TI. Semantic interpretation (matching to Wikidata/DBpedia) is a research frontier rarely needed for civic data work, though it can be useful for harmonizing entity names across sources (e.g., institution names, jurisdictions).
+A liberation project touches all of TE plus the canonicalization and normalization halves of TI. Semantic interpretation (matching to Wikidata/DBpedia) is a research frontier rarely worth the cost in civic work — the concept catalog with caveats handles cross-source entity resolution at a sufficient level.
 
-The state of the art for born-digital PDF table extraction, surveyed by [Kasem et al. (2024, *ACM Computing Surveys*)](https://doi.org/10.1145/3657281), is close to solved for cleanly ruled tables and unsolved for the long tail of complex layouts (multi-page tables, merged headers, panel formats). Practical implication: **start with rule-based / heuristic tools (pdfplumber, camelot) and resist the temptation to reach for deep-learning table extractors** unless the layout is genuinely beyond classical methods. The deep-learning frontier (TableFormer, CascadeTabNet, GTE) is impressive but rarely worth the operational cost for civic data, where per-document craft remains the most reliable approach.
+**Use rule-based / heuristic tools first** (pdfplumber, camelot). Deep-learning table extractors (TableFormer, CascadeTabNet, GTE) are impressive on average but rarely worth the operational cost for civic data — per-document craft remains more reliable, and the output is auditable. Reach for ML extractors only when classical methods genuinely fail, and prefer open-source extractors with reproducible behavior over closed LLM-based parsers. The audit that matters is *top-line reconciliation against the source's own published total*, not benchmark scores. Benchmark corpora (PubTabNet, FinTabNet, SciTSR, ICDAR) are useful as *fixtures* for parser tests but not as targets to optimize against.
 
-The [ICDAR table competition evaluation methodology](https://doi.org/10.1145/2361354.2361365) (Göbel et al., 2012) gives the canonical performance metrics: precision/recall on table regions, on cell adjacency relations, and (for TI) tree-edit-distance similarity (TEDS). For civic liberation purposes the more useful audit is *top-line reconciliation* (see the Boulder Election-Results `reconcile.py` pattern) — does the sum of votes in the extracted CSV match the published total? — because it tests both extraction fidelity and downstream cleaning together.
+**Tidy data.** Wickham's "Tidy Data" (2014) anchors the canonical storage shape: one row per observation, one column per variable, one cell per value. Every mature civic project converges on this because unions, audits, and dictionaries all become uniform operations. The trade — tidy long-form is awkward to read by eye — is bridged by shipping `docs/filter-pivot-recipes.md` with the dataset. See [`data-modeling.md#wickham-tidy-as-the-storage-shape`](data-modeling.md#wickham-tidy-as-the-storage-shape) for the operational form.
 
-#### Where the field has expanded since 2023
+## Liberation as infrastructure
 
-The Shigarov decomposition above frames the *extraction* side of table understanding. A parallel literature, surveyed in [tanfiona/LLM-on-Tabular-Data-Prediction-Table-Understanding-Data-Generation](https://github.com/tanfiona/LLM-on-Tabular-Data-Prediction-Table-Understanding-Data-Generation), organizes the *interpretation* side into eight task families that researchers benchmark separately:
+A useful checklist framing: a liberation project is *installed infrastructure* that other actors will depend on. Six components a complete project covers:
 
-| Task family | What the system does |
+| Component | What the project provides |
 |---|---|
-| **Question Answering** | Answer natural-language questions against a table (open or closed-domain). |
-| **Numeric Question Answering** | Subset where the answer requires arithmetic over multiple cells — sums, ratios, year-over-year deltas. The hard case for LLMs. |
-| **Text2SQL** | Translate a question into the SQL that would answer it against a known schema. |
-| **Table2Text** | Generate a faithful natural-language summary of a table or table region. |
-| **Fact Verification** | Decide whether a claim is supported, contradicted, or unanswerable from a table. |
-| **Table Profiling** | Produce metadata about a table — dtypes, key columns, plausible joins, semantic types. |
-| **Table Transformation** | Reshape a table — pivot, unpivot, fill, dedupe — by example or instruction. |
-| **Entity Matching** | Decide whether two rows from different tables refer to the same real-world entity. |
+| **Linkability** | Stable schema + unique identifiers downstream uses can join against |
+| **Interpretability** | Data dictionary + concept catalog (with caveats) |
+| **Continuity** | CI refresh workflow that survives the original developer leaving |
+| **Safe scrutiny** | Reconciliation report; audit log; immutable originals; visible provenance |
+| **Authority** | Documented legal framework — CORA / FOIA / statutory disclosure |
+| **Remedy** | A path for downstream users to flag errors and for the project to correct them with the audit trail preserved |
 
-For civic liberation work, **profiling, transformation, and entity matching** map directly onto the pipeline: profiling is what `scripts/audit.py` partially automates; transformation is what every parser does; entity matching is the concept-catalog problem under a different name. The QA and fact-verification work is mostly downstream of liberation — useful for the consumers of the published Datasette, less useful for building it.
-
-The canonical benchmarks are useful as fixtures (or as inspiration for fixtures) when a parser handles a layout class that resembles one of them:
-
-| Benchmark | Domain | Size | Use it when |
-|---|---|---|---|
-| [PubTabNet](https://github.com/ibm-aur-nlp/PubTabNet) | Scientific paper tables | ~568k | Borrowing test cases for ruled-table extraction at scale |
-| [FinTabNet](https://developer.ibm.com/exchanges/data/all/fintabnet/) | Financial report tables (10-K, 10-Q) | ~112k | Government budget PDFs, agency annual reports |
-| [SciTSR](https://github.com/Academic-Engineering-Materials/SciTSR) | Table Structure Recognition | ~15k | Multi-page tables with merged headers |
-| [ICDAR competition corpora](https://tamirhassan.com/html/competition.html) | Mixed PDF tables | varies | Hard cases — the corpus is curated for adversarial layouts |
-| [TabFact](https://tabfact.github.io/) | Wikipedia table fact-verification | ~16.6k | Less applicable; useful only if a project ships claim-checking |
-| [WikiTableQuestions](https://ppasupat.github.io/WikiTableQuestions/) | QA over Wikipedia tables | ~2k | Downstream consumer benchmarking; not for extraction |
-| [TAT-QA](https://github.com/NExTplusplus/TAT-QA) | Hybrid table+text financial QA | ~2.8k | When the source mixes tables with narrative numbers |
-| [ToTTo](https://github.com/google-research-datasets/ToTTo) | Table-to-sentence | ~120k | Generating natural-language descriptions of rows (rarely needed in liberation) |
-| [HiTAB](https://github.com/microsoft/HiTab) | Hierarchical statistical tables | ~3.6k | Census-style cross-tabulations |
-
-The pragmatic implication for this skill stands unchanged: **rule-based first, deep-learning only when classical methods genuinely fail**, and even then prefer the open-source extractors with reproducible behavior (TableFormer, CascadeTabNet) over closed LLM table-parsers (which produce outputs you can't audit). The published reconciliation against the source's own top-line total is the test that matters; benchmark scores correlate weakly with that.
-
-For a current snapshot of the literature, tanfiona's repo is the best-maintained index. Read it once when starting a parser that will hit non-trivial layouts; skip it for tabular sources that are already mostly clean.
-
-### Tidy data and the Wickham tradition
-
-Hadley Wickham's 2014 paper "Tidy Data" (*Journal of Statistical Software*) is the methodological anchor for the canonical storage shape used here: one row per observation, one column per variable, one cell per value. Almost every mature civic liberation project — PUDL, BoulderPublicData/Election-Results, the IPEDS pipeline — converges on this format because:
-
-- Cross-source harmonization is easy: tidy long-form unions trivially.
-- Auditing is easy: row counts, NA rates, dtype checks all operate uniformly.
-- Documentation is easy: one row per column in the data dictionary, one entry per concept in the crosswalk.
-
-The cost is that tidy long-form is hard to read by eye — analysts pivot to wide form for analysis. The skill resolves this by always shipping `docs/filter-pivot-recipes.md` with the dataset.
-
-## The CUPIDS / public-interest framing
-
-A contemporary thread worth naming: the public-interest data infrastructuring literature (CU Public Interest Data Science Clinic and adjacent work) reframes liberation projects as **infrastructure** in the science-and-technology-studies sense — installed bases of code, data, documentation, and labor that other actors come to depend on. The framework's "installed-base components" map onto this skill as follows:
-
-| Installed-base component | What the liberation project provides |
-|---|---|
-| **Linkability** | A stable schema and unique identifiers that downstream uses can join against |
-| **Interpretability** | The data dictionary and the concept catalog (with caveats) |
-| **Continuity** | The CI workflow that refreshes annually; the source registry that survives the original developer leaving |
-| **Safe scrutiny** | The reconciliation report and the audit log; immutable originals; visible provenance |
-| **Authority** | Documentation of which body originally published the data and under what legal framework (CORA, FOIA, statutory disclosure) |
-| **Remedy** | A documented path for downstream users to flag errors and for the project to correct them in a way that preserves the audit trail |
-
-The framework is useful as a checklist: a liberation that supplies tidy data but no documented remedy for errors, or processed data but no provenance, has built infrastructure with missing struts.
+A project that supplies tidy data but no documented remedy, or processed data but no provenance, has built infrastructure with missing struts.
 
 ## How to use this in a project
 

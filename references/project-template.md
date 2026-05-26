@@ -26,7 +26,8 @@ project-name/
 │       └── fips_to_county.csv
 ├── scripts/
 │   ├── schema.py       <- LONG_COLUMNS, pandera schema, normalize_long
-│   ├── sources.py      <- Source ABC + source registry
+│   ├── sources.py      <- Source ABC and Artifact dataclass
+│   ├── config.py       <- paths, HTTP defaults, SOURCES registry
 │   ├── concepts.py     <- concept catalog (multi-source projects only)
 │   ├── fetch.py        <- idempotent downloader; updates manifest
 │   ├── discover.py     <- (optional) find new sources upstream
@@ -119,127 +120,19 @@ Required sections:
 
 ### `pyproject.toml`
 
-`uv`-managed. Python 3.11+. The default core dependencies:
-
-```toml
-[project]
-name = "{{ project_slug }}"
-version = "0.1.0"
-description = "{{ description }}"
-authors = [{name = "{{ author }}"}]
-requires-python = ">=3.11"
-dependencies = [
-    "pandas>=2.2",
-    "pyarrow>=15",
-    "pandera[pandas]>=0.20",
-    "pydantic>=2.6",
-    "requests>=2.31",
-    "requests-cache>=1.2",
-    "tenacity>=8",
-    "structlog>=24",
-    "tabulate>=0.9",
-]
-
-[project.optional-dependencies]
-pdf = ["pdfplumber>=0.11", "pypdf>=4", "camelot-py[cv]>=0.11"]
-ocr = ["pytesseract>=0.3.10", "pdf2image>=1.17"]
-scrape = ["httpx>=0.27", "selectolax>=0.3.21", "playwright>=1.45"]
-tabular = ["openpyxl>=3.1", "xlrd>=2.0", "pyreadstat>=1.2"]
-
-[dependency-groups]
-dev = ["pytest>=8", "pytest-recording>=0.13", "ruff>=0.6", "mypy>=1.11"]
-
-[project.scripts]
-{{ project_slug }} = "scripts.pipeline:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-```
-
-The optional-dependencies groups let small projects skip heavy installs they don't need. `uv sync --extra pdf --extra scrape` pulls only what the project actually uses. The `scrape` extra includes `playwright`; after `uv sync --extra scrape`, run `uv run playwright install chromium` once.
+`uv`-managed; Python 3.11+. Core deps: `pandas`, `pyarrow`, `pandera[pandas]`, `pydantic`, `requests`, `requests-cache`, `tenacity`, `structlog`, `tabulate`. Optional extras: `pdf` (pdfplumber, pypdf, camelot), `ocr` (pytesseract, pdf2image), `scrape` (httpx, selectolax, playwright), `tabular` (openpyxl, xlrd, pyreadstat), `publish` (datasette, sqlite-utils, datasette-publish-vercel), `analysis` (duckdb). Dev group: `pytest`, `pytest-recording`, `ruff`, `mypy`. Exact pin levels live in the [template repo](https://github.com/brianckeegan/data-liberation-template/blob/main/pyproject.toml); `uv sync --extra pdf --extra scrape` pulls only what the project uses. The `scrape` extra needs a one-time `uv run playwright install chromium`.
 
 ### `.gitignore`
 
-Standard Python `.gitignore` plus three project-specific entries:
-
-```
-# Generated outputs — committed selectively, see README
-data/processed/*.parquet
-data/audit/*.md
-data/audit/*.json
-
-# Cached HTTP responses (if requests-cache is enabled)
-.requests-cache.sqlite
-
-# Local secrets (FOIA tracking IDs, API keys)
-.env
-
-# Auto-generated docs
-docs/variables.md
-docs/variables.csv
-
-# Quarto rendered output (the site itself lives in the gh-pages branch)
-/_site/
-/.quarto/
-```
-
-Whether to commit `data/processed/*.csv` is project-dependent. Small projects (<10 MB CSV) commit; large projects ignore and produce them on demand. The template default commits CSV outputs and ignores Parquet.
-
-The `_freeze/` directory (Quarto's executed-code cache) **should** be committed — that's what lets the GitHub Action re-render the site without re-running all the code. Don't add it to `.gitignore`.
+Standard Python plus: `.requests-cache.sqlite`, `.env`, `docs/variables.{md,csv}` *unignored* (the refresh PR carries them), `/_site/` + `/.quarto/`. **Commit `docs/_freeze/`** (Quarto's executed-code cache) so the GH Action re-renders without re-running every code block. Whether to commit `data/processed/*.csv` is project-dependent — template default commits CSV, ignores Parquet. Full file in the [template repo](https://github.com/brianckeegan/data-liberation-template/blob/main/.gitignore).
 
 ### `.gitattributes`
 
-Git LFS rules — declares which large file globs are tracked via LFS pointers rather than raw bytes in Git. Default template entries:
-
-```
-# Source artifacts — almost always large
-data/original/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
-data/original/**/*.zip  filter=lfs diff=lfs merge=lfs -text
-data/original/**/*.xlsx filter=lfs diff=lfs merge=lfs -text
-
-# Large processed outputs
-data/processed/*.parquet filter=lfs diff=lfs merge=lfs -text
-data/processed/*.db      filter=lfs diff=lfs merge=lfs -text
-
-# Quarto-cached computational outputs
-docs/_freeze/**/*.png  filter=lfs diff=lfs merge=lfs -text
-docs/_freeze/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
-```
-
-Contributors must `git lfs install` once per machine before cloning. CI workflows that need the raw data must use `actions/checkout@v4` with `lfs: true`. See `references/toolchain-lfs.md` for the per-plan size limits and the architectural constraint that LFS does not work with GitHub Pages.
+Git LFS rules. Default patterns: `data/original/**/*.{pdf,zip,xlsx,xls,tar.gz,dbf}`, `data/processed/*.{parquet,db}`, `docs/_freeze/**/*.{png,pdf}`. Contributors must `git lfs install` once per machine; CI jobs needing raw data set `actions/checkout@v4` with `lfs: true`. The LFS-vs-Pages constraint, per-plan size limits, and CI bandwidth posture are in [`toolchain-lfs.md`](toolchain-lfs.md).
 
 ### `_quarto.yml`
 
-If the project has a Quarto documentation site (most do, for the methodology and tutorial layer), `_quarto.yml` at the project root declares it a Quarto project and configures the rendered output. Minimal version:
-
-```yaml
-project:
-  type: website
-  output-dir: _site
-
-website:
-  title: "{{ project_name }}"
-  description: "{{ description }}"
-  navbar:
-    left:
-      - href: docs/index.qmd
-        text: Home
-      - href: docs/data-dictionary.qmd
-        text: Data dictionary
-      - href: docs/methodology.qmd
-        text: Methodology
-
-format:
-  html:
-    theme: cosmo
-    toc: true
-
-execute:
-  freeze: auto
-```
-
-See `references/toolchain-quarto.md` for the full Quarto setup, including the `_freeze` pattern, the GH Action workflow, and the one-time `quarto publish gh-pages` local setup that creates the branch.
+Declares a Quarto website project with `_site/` output, a navbar linking docs/index.qmd + data-dictionary + filter-pivot-recipes + methodology + changelog, and `execute: freeze: auto`. Full configuration in the [template repo](https://github.com/brianckeegan/data-liberation-template/blob/main/_quarto.yml); the toolchain-side rationale (the freeze pattern, the GH Action workflow, the one-time `quarto publish gh-pages` setup) is in [`toolchain-quarto.md`](toolchain-quarto.md).
 
 ## `scripts/` modules
 

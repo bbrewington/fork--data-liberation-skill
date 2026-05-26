@@ -106,7 +106,7 @@ project-name/
 ├── tests/           <- pytest suite (schema contracts, parser fixtures)
 ├── docs/
 │   ├── data-dictionary.md       <- one row per column, hand-maintained
-│   └── filter-pivot-recipes.md  <- pandas + tidyverse recipes
+│   └── filter-pivot-recipes.md  <- pandas + tidyverse + DuckDB recipes
 ├── AGENTS.md        <- architecture, gotchas, future-agent handbook
 ├── README.md        <- quickstart + data summary + movement context
 ├── pyproject.toml   <- uv-managed env (see template)
@@ -116,7 +116,7 @@ project-name/
 
 **Existing project:** Identify where the new source fits in the existing Source registry. Read the project's `AGENTS.md` for conventions, then implement the `Source` contract (`discover` + `ingest`) in a new module under `scripts/parsers/`.
 
-Bootstrap from single-source; keep the multi-source-ready directory structure (`scripts/parsers/<source>/`, `data/original/<source>/`) from day one so adding a second source later is a parser file, not a refactor.
+Bootstrap from single-source; keep the multi-source-ready layout (`scripts/parsers/<source>_<vintage>.py`, `data/original/<source>/<vintage>/`) from day one so adding a second source later is a parser file, not a refactor.
 
 ### 3. Extract — pull text and tables out
 
