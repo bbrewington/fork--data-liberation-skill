@@ -14,21 +14,21 @@ The skill commits to seven principles:
 
 ## The cleaning pipeline
 
-Run operations in this order — earlier steps surface issues that change how later steps behave. Skipping forward means redoing later.
+Every parser does three things — *extract from a source*, *transform what's there*, *publish to a sink* — and the 9 steps below group cleanly into those three roles. Naming the role a step plays sharpens diagnosis: a *source-extraction* failure (encoding wrong, sentinel missed, dtype mis-inferred) calls for fixes in the parser's `read_*` calls; a *transformation* failure (consistency, dedup logic, missingness handling) belongs in the middle of the parser; a *sink-publication* failure (PII leaked, format unified inconsistently, output didn't match the schema contract) belongs at the end or in `publish.py`.
 
-| Step | Goal | Output |
-|---|---|---|
-| 1. Initial assessment | Know what you have | Profile report; structural-issues note |
-| 2. Structural fixes | Make the shape canonical | Standardized column names, dtypes, no fully-empty rows/cols |
-| 3. Deduplication | Remove redundant rows | Deduplicated frame + dropped-rows log |
-| 4. Missing-value treatment | Decide per-mechanism, document | Frame with NA preserved or imputed with rationale |
-| 5. Outlier detection | Catch the impossible and the suspicious | Outlier flag column (`outlier_method`, `outlier_reason`) |
-| 6. Standardization / normalization | Make values uniform | Casing, encoding, formats unified |
-| 7. Validation + reject port | Gate the canonical output | Valid rows → `data/processed/`; invalid → `data/audit/rejected.csv` |
-| 8. PII redaction | Apply policy at the publish boundary | Redacted columns in `data/processed/` only |
-| 9. Documentation | Log what changed | `data/audit/cleaning-log-<ts>.json` |
+| Step | Role | Goal | Output |
+|---|---|---|---|
+| 1. Initial assessment | Source-extraction | Know what you have | Profile report; structural-issues note |
+| 2. Structural fixes | Source-extraction | Make the shape canonical | Standardized column names, dtypes, no fully-empty rows/cols |
+| 3. Deduplication | Transformation | Remove redundant rows | Deduplicated frame + dropped-rows log |
+| 4. Missing-value treatment | Transformation | Decide per-mechanism, document | Frame with NA preserved or imputed with rationale |
+| 5. Outlier detection | Transformation | Catch the impossible and the suspicious | Outlier flag column (`outlier_method`, `outlier_reason`) |
+| 6. Standardization / normalization | Transformation | Make values uniform | Casing, encoding, formats unified |
+| 7. Validation + reject port | Transformation | Gate the canonical output against the [schema contract](data-modeling.md#the-canonical-schema) | Valid rows → `data/processed/`; invalid → `data/audit/rejected.csv` |
+| 8. PII redaction | Sink-publication | Apply policy at the publish boundary | Redacted columns in `data/processed/` only |
+| 9. Documentation | Sink-publication | Log what changed | `data/audit/cleaning-log-<ts>.json` |
 
-The rest of this reference unpacks each step with concrete tools and the integration point in this skill's project layout.
+Run them in order — earlier steps surface issues that change how later steps behave. Skipping forward means redoing later. The rest of this reference unpacks each step with concrete tools and the integration point in this skill's project layout.
 
 ## 1. Initial assessment — profile before you parse
 

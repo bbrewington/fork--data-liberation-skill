@@ -88,6 +88,8 @@ Two design choices worth defending:
 
 The schema goes *inside* the parser pipeline, not at the consumer boundary. Validation at write time is the gate; consumers read a validated artifact.
 
+**The schema is a contract.** Think of `LONG_COLUMNS` + the pandera class together as a *contract* the processed CSV obeys, separate from how any particular parser produces it: declared column names + types + nullability + value ranges, with everything else (the source's quirks, the parser's intermediate columns) silently absorbed into the parser's internal work. The data dictionary is the human-readable side of the same contract; the pandera class is the machine-enforced side. A parser's job is to translate the *publisher's* contract (whatever the source happens to publish) into this contract; `_normalize.py` helpers are reusable contract-preserving operations. Naming this lets `AGENTS.md` distinguish two failure modes that look similar but require different fixes: a *contract violation* means the parser produced something the schema rejected (fix the parser); a *contract change* means the project decided to evolve `LONG_COLUMNS` or a dtype (a schema migration, document in the changelog).
+
 ## Data dictionary
 
 Hand-maintained, one entry per column. Lives at `docs/data-dictionary.md`. The IPEDS pipeline's `DATA_DICTIONARY.md` is the model.
@@ -118,6 +120,8 @@ A concept catalog is *not* a rename map. A rename map is a foot-gun: it asserts 
 1. The canonical concept name.
 2. Which source variables map to it, per source × vintage.
 3. **The caveats** — what is and is not comparable across those mappings.
+
+Each concept entry functions as a *contract* — a reusable cross-source equivalence assertion with declared inputs (source × vintage × variable), a declared output (the canonical concept), and declared invariants (the caveats that bound the equivalence). Naming this matches the schema-as-contract framing above: the schema is the contract at the *column* level; the concept catalog is the contract at the *cross-source-equivalence* level. A concept whose caveats list is empty is suspicious — like a function with no preconditions, it's usually under-specified rather than universal.
 
 The [IPEDS pipeline's `concepts.py`](https://github.com/BrianMKeegan/ipeds-pipeline) is the canonical model. Sketch in YAML form for projects that prefer a data-only catalog at `data/lookups/concepts.yaml`:
 
@@ -228,7 +232,19 @@ The audit's job, then, is not to clean these records but to report: *N records h
 
 ## Pipeline shape — three phases, the data-driven tradeoff
 
-Any data-quality effort traverses three phases (Batini et al. 2009):
+Two complementary lenses; the same artifacts read by each.
+
+**Conceptual / logical / physical** — every data workflow traverses three layers regardless of tooling. *Conceptual* is what the workflow is supposed to do; *logical* is how it's sequenced, typed, and validated; *physical* is how the code runs. Naming the layer you're working in shortcuts the wrong-altitude argument ("we're at conceptual; defer the dtype question").
+
+| Layer | Question it answers | Where this skill produces it |
+|---|---|---|
+| Conceptual | *What* is this workflow doing, and what does its output mean? | Survey notes; the data dictionary; `LONG_COLUMNS`; the concept catalog |
+| Logical | *How* are the pieces sequenced and validated? What are the contracts at each boundary? | The pandera schema; the 9-step cleaning pipeline; `validators.py`; the reject-port pattern |
+| Physical | *How does this actually execute?* | The per-vintage parsers; `clean.py`; the published CSV / Datasette / Quarto deploys |
+
+A bug in a parser is a *physical* problem; a bug in the schema is *logical*; a bug in "we picked the wrong unit of observation" is *conceptual* and orders-of-magnitude more expensive to fix late. The workflow's six phases (Survey → Scaffold → Extract → Tidy → Audit → Publish) progress through these layers more or less in order — the layering is the diagnostic vocabulary, not a separate workflow.
+
+**Three phases of DQ work** (Batini et al. 2009) — orthogonal to the layers above, this names the *kinds* of activity any DQ effort performs:
 
 - **State reconstruction** — the contextual work *before* you measure: find the codebook, identify the records officer, surface prior journalism, get the FOIA history. This is the Survey phase; see [SKILL.md's Survey section](../SKILL.md).
 - **Assessment** — measurement plus comparison against reference values. `audit.py` is measurement; `reconcile.py` is assessment.
