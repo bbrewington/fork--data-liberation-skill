@@ -165,8 +165,9 @@ OCR'd output should always be **flagged as such in provenance** (e.g., `extracti
 
 For documents where the structure is not just tables but mixed layout (figures, multi-column text, sidebars), reach for:
 
-- [**`unstructured`**](https://github.com/Unstructured-IO/unstructured) for general document partitioning into typed blocks (Title, NarrativeText, Table, ListItem, …).
-- [**`layoutparser`**](https://github.com/Layout-Parser/layout-parser) for ML-based region detection if classical methods fail.
+- [**`docling`**](https://github.com/docling-project/docling) — the modern default for PDF understanding with mixed layout. Parses reading order, table structure, code blocks, formulas, and image classification into a unified `DoclingDocument` representation with Markdown / HTML / lossless JSON / DocTags exports. Native VLM support via [GraniteDocling](https://huggingface.co/ibm-granite/granite-docling-258M) handles scanned PDFs without a separate OCR pass. See [`toolchain-documents.md`](toolchain-documents.md#modern-unified-extractors--when-one-tool-is-enough) for the decision tree on docling vs per-format tools.
+- [**`unstructured`**](https://github.com/Unstructured-IO/unstructured) for general document partitioning into typed blocks (Title, NarrativeText, Table, ListItem, …) — older incumbent, still fine but generally less capable than docling for PDFs.
+- [**`layoutparser`**](https://github.com/Layout-Parser/layout-parser) for ML-based region detection if classical methods fail and you need lower-level control than docling exposes.
 
 These are heavier dependencies. Reach for them only when the layout itself is the problem; for table-centric extraction, pdfplumber/camelot remain the default.
 
