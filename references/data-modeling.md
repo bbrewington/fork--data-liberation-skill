@@ -198,7 +198,7 @@ For dimensions you actually *compute* in code, four are durable enough across th
 | Dimension | Working definition | How the skill measures it |
 |---|---|---|
 | **Accuracy** | Closeness to a known reference value | `reconcile.py` against the source's own published totals |
-| **Completeness** | Non-null share, with the three-way distinction *missing-and-known-to-exist* / *does-not-exist* / *unknown-whether-exists* recorded in the dictionary | `audit.py` null rates; sentinel-value handling in parsers |
+| **Completeness** | Non-null share, with the three-way distinction *missing-and-known-to-exist* / *does-not-exist* / *unknown-whether-exists* recorded in the dictionary | `audit.py` null rates; sentinel-value handling in parsers (see [`cleaning-and-standardization.md`](cleaning-and-standardization.md#4-missing-value-treatment)) |
 | **Consistency** | Conformance to declared schema and to cross-source agreement | `pandera` schema violations; cross-source `reconcile.py` |
 | **Timeliness** | `max(0, 1 − (fetched_at − published_at) / publisher_cadence)` | `provenance.csv`'s timestamps + the source's declared cadence |
 

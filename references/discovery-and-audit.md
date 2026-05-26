@@ -32,7 +32,7 @@ The documentation-and-contact checks are *state reconstruction* — the under-ro
 - **Date and geography ranges.** Does the data actually cover the years and jurisdictions the publisher claims? A "1980–present" dataset that has zero records before 1995 needs explaining.
 - **Categorical field consistency.** `GROUP BY` every important categorical column and read the result. Spelling variations (`"Main St"` vs `"Main Street"` vs `"MAIN ST."`), trailing whitespace, and case differences are how dirty data hides.
 - **Blank values.** Determine whether blanks are *real values* (the publisher genuinely didn't measure this) or *import errors* (the column dropped during export). The two cases require different treatment in the parser.
-- **Suspicious sentinel values.** `-9`, `9999`, `99999999`, `-1`, `1900-01-01`, the empty string — government datasets use ALL of these for "missing." Document the ones this source uses and convert them to NA in the parser, not silently in the pipeline.
+- **Suspicious sentinel values.** `-9`, `9999`, `99999999`, `-1`, `1900-01-01`, the empty string — government datasets use ALL of these for "missing." Document the ones this source uses and convert them to NA in the parser, not silently in the pipeline. See [`cleaning-and-standardization.md`](cleaning-and-standardization.md#4-missing-value-treatment) for the Rubin MCAR/MAR/MNAR framework and treatment choices.
 
 ### Methodology and provenance checks
 
