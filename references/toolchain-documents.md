@@ -308,6 +308,35 @@ def paginate_cursor(base_url):
 
 Both should be paired with `requests-cache` (idempotent reruns) and a `tenacity` retry decorator (transient API failures). See `toolchain-scraping.md` for the polite-request budget — the same etiquette applies to API consumption.
 
+## Narrative documents in proprietary formats — DOCX, RTF, and the markdown-as-intermediate pattern
+
+Agency reports, FOIA-released drafts, and legislative responses sometimes arrive as `.docx` or `.rtf` rather than PDF or HTML. The pattern that scales across all of them is to **pass through markdown as an intermediate representation** before the parser does anything domain-specific: the markdown form is plain text with predictable structural conventions (headings, lists, tables), the OOXML / RTF byte format is not. Pandoc is the canonical converter; the *principle* (proprietary narrative → markdown → tidy long via the same parser conventions used for HTML extraction) is format-agnostic and survives format-of-the-month churn.
+
+```python
+# Conceptual sketch. The point is the two-stage flow, not the specific tool.
+import subprocess
+from pathlib import Path
+
+src = Path("data/original/agency/2024-report.docx")
+md  = src.with_suffix(".md")
+subprocess.run(["pandoc", "-f", "docx", "-t", "gfm", "-o", str(md), str(src)], check=True)
+# md is now parseable by the same selectolax/regex/headings-and-tables pipeline
+# you use for born-digital HTML.
+```
+
+Two recurring failure modes worth naming: (1) DOCX-embedded tables that lose row-column structure on conversion — fall back to direct OOXML inspection (the document is a ZIP of XML files; tables are `<w:tbl>` elements with predictable structure) when the markdown shape isn't faithful. (2) RTF documents from older agencies sometimes have legacy encodings (CP1252, Mac Roman) — pandoc's `--from rtf` flag handles the parse but document the encoding in `provenance.csv`.
+
+### Forensic revision history as a first-class signal
+
+DOCX, RTF, and PDF revision streams all carry metadata most consumers ignore — *tracked changes*, *comments*, *revision marks*, *editor identities*, *timestamps of each edit*. For most civic liberation work, the final visible text is the data and the audit trail is noise. But sometimes **the audit trail is the story**: an FOIA release where the redactions tell you what was sensitive; a leaked draft where the tracked changes reveal which clause an agency lawyer fought; an annotated policy document where the comments name the dissenting reviewer.
+
+The generalizable principle: **when a source carries an audit trail in its native format, preserving that trail is part of provenance, not optional metadata.** Two concrete moves:
+
+- **Extract the audit trail alongside the surface text.** For DOCX, that's `<w:ins>`, `<w:del>`, `<w:comment>` elements in the OOXML. For PDF, it's the revision objects in the trailer dictionary. For source repositories (some publishers FOIA-release git history), it's the commit log. The audit trail becomes a sibling artifact under `data/audit/revision_history/<source>/<vintage>.json` — never silently flattened into the processed CSV.
+- **Document the existence even when not extracted.** A column in `docs/data-dictionary.md` *Known caveats* noting *"the source DOCX contains 47 tracked-change insertions by 'A. Smith (DOJ)' between 2019-03-14 and 2019-03-21; raw OOXML preserved in `data/audit/revision_history/`"* is enough to let a future researcher follow the lead. The forensic value of revision history compounds over time; the cost of preserving it is small.
+
+The principle generalizes past DOCX: any format that distinguishes *displayed text* from *edit history* (PDF incremental updates, RTF revision marks, OOXML tracked changes, git commit logs, Wikipedia article histories) gets the same treatment.
+
 ## Choosing the output format
 
 These document formats lower into the same canonical CSV/Parquet via `scripts/parsers/<source>_<vintage>.py`. The parser's job is to call the right library, recover the rows, return a DataFrame validated against `CanonicalLong` (see `references/data-modeling.md`).

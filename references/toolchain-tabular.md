@@ -112,6 +112,19 @@ df = pd.concat(frames, ignore_index=True)
 
 Use `engine="xlrd"`. Note that recent xlrd versions dropped `.xlsx` support; the engine choice in pandas tracks this. For old `.xls` files where the extension lies about the format (Boulder's 2013 SoV is actually XLSX with an `.xls` extension), let pandas auto-detect and pass `engine=None`, or pre-rename the file in `data/original/` with a note.
 
+### Recompute before you trust formulas
+
+When a publisher distributes an XLSX with cells whose values come from formulas, the file stores both the *formula* and the *last-computed value cached when the file was saved*. `pandas.read_excel(..., data_only=True)` reads the cached value — fast, but **stale if the source-of-truth formula and its cached value disagree**. Two ways to find out:
+
+- *The source was edited but not recalculated before save.* Excel and LibreOffice both default to recalc-on-save, but agency exporters built on `openpyxl` (or hand-edited files) often skip this; the cached values silently lag the formula intent.
+- *The formula references external workbooks or named ranges that don't resolve in your parser context.* The cached value is the last value seen on the publisher's machine; your environment can't reproduce it.
+
+The general principle: **for any format that separates source-of-truth-expression from cached-value, recompute before parsing.** For XLSX specifically, headless LibreOffice in a `--calc --headless --convert-to xlsx` pass forces a full recalc and writes a normalized file the parser can trust. Document the recompute step in `provenance.csv`'s `extraction_notes` so downstream consumers know which values are publisher-as-saved vs project-recomputed; the two can diverge meaningfully when formulas pull from `INDIRECT()`, `OFFSET()`, or external links.
+
+The same principle applies past XLSX — materialized database views with stale incremental updates, cached query results in BI tools, derived columns in CMS-backed datasets. Any time the file format distinguishes formula from result, the recompute step is part of the parser, not the consumer.
+
+When the formulas themselves are *broken* in the source — visible as `#REF!`, `#DIV/0!`, `#VALUE!`, `#N/A`, `#NAME?` cells — the source has a data-quality problem worth surfacing rather than papering over. See [`discovery-and-audit.md#pre-extraction-bulletproofing`](discovery-and-audit.md#pre-extraction-bulletproofing) for the "format-native errors are quality signals" check that belongs in the bulletproofing pass.
+
 ## Reading CSV
 
 `pandas.read_csv` is well known. Three patterns deserve naming because they trip up almost every project.
