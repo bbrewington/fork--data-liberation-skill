@@ -46,6 +46,8 @@ with pdfplumber.open("data/original/agency/report.pdf") as pdf:
 
 `page.extract_tables()` returns a list of lists (the outer list is tables on the page; each inner list is rows of cell strings). `page.extract_table()` returns just the first table.
 
+The PDF also carries internal metadata accessible as `pdf.metadata` — title, author, creator (which application authored the file), producer (which library wrote the bytes), creation and modification timestamps. None of it is load-bearing for extraction, but the *producer* field in particular is useful provenance: when a multi-vintage series suddenly shifts from `"Microsoft Word"` to `"Adobe PDF Library"` mid-period, the parser usually needs a vintage branch shortly after. Worth copying into `provenance.csv`'s `extraction_notes` for the few vintages where the source switched.
+
 ### When the default detection misfires
 
 The default detector uses both lines and text positioning. When it's wrong it's usually wrong in one of these ways:
@@ -175,6 +177,19 @@ Tesseract remains the default because it's bundled in every Linux distro, has 10
 Two-tool combinations also help: **[`OCRmyPDF`](https://github.com/jbarlow83/OCRmyPDF) + pdfplumber** is the canonical pattern for a scanned-PDF corpus that needs to be searched *and* extracted. OCRmyPDF wraps tesseract (or any tool above) to add a text layer *to the PDF in place* — the scanned PDF becomes a born-digital PDF that pdfplumber can then parse normally. This collapses the otherwise-awkward "OCR the page, save text separately, re-attribute text to coordinates" three-step into one. The original is preserved (OCRmyPDF writes a sidecar `.ocr.pdf`), so the immutable-originals discipline holds.
 
 Update `extraction_quality` in `provenance.csv` to name the engine used (`ocr_paddleocr`, `ocr_surya`, `ocrmypdf`, etc.) — downstream users apply different skepticism levels depending on which engine produced the text.
+
+## Extracting images as evidence
+
+PDFs aren't always text-with-tables. Court filings, incident reports, environmental impact assessments, and FOIA-released archives often carry images that *are* the evidence — exhibits, photographs, scanned signatures, maps. The principle: **if the image is referenced by the surface text, the image is part of the dataset**, not optional ephemera. Extract it, hash it, store it alongside the text under `data/original/<source>/<vintage>/_images/<page>-<index>.<ext>`, and add a `has_image` column or a sidecar `images.csv` keyed on `(source, vintage, page)` so a downstream reader can join from a processed-CSV row back to the exhibit it cites.
+
+```python
+# pdfplumber exposes pdf.pages[N].images — bounding boxes + the raw bytes
+# behind each embedded image. The same image objects are also reachable
+# from the PDF's resource dictionary via pdfminer.six or pypdf for projects
+# that need image-format-preserving extraction.
+```
+
+Update `provenance.csv` with an `images_extracted` count per (source, vintage) so the audit can flag the drift case where a refresh suddenly stops emitting images (usually a parser regression or a publisher format change).
 
 ## Layout analysis — when tables aren't enough
 
