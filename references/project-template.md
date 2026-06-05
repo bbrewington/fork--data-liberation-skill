@@ -383,6 +383,14 @@ Some sources contain information *about people who didn't consent to be in the d
 - **Honor parallel sovereignty frames.** For data about indigenous communities, the [CARE principles](https://www.gida-global.org/care) (Collective benefit, Authority to control, Responsibility, Ethics) sit alongside the FAIR principles. For data about other historically-surveilled populations, ask: would the affected community endorse this liberation, or is this strip-mining their data for an enterprise consumer? AGENTS.md should record the answer.
 - **Set out-of-scope uses explicitly.** A processed CSV can be cited for accountability journalism *and* used to feed predictive policing, enrichment-for-eviction, or immigration-enforcement tooling. The README and AGENTS.md should name uses the maintainers consider out-of-scope. This is not legally binding but it's the documented community norm.
 
+**These are real gates, not caveats.** Most of this skill's guidance is advisory, but privacy law and Indigenous-data sovereignty can mean *do not publish, or publish differently* — they outrank the default "liberate and publish." A short decision order:
+
+1. **Privacy-law screen.** If the release contains personal data that **GDPR** (incl. the Art. 17 right to erasure), **CCPA**, or an agency procedure protects, the question is whether to publish *at all*, and in what shape — redact, pseudonymize, aggregate, or withhold. "It was extractable" is not authorization. Document the call and the legal basis.
+2. **CARE-vs-FAIR check.** FAIR pushes toward maximal discoverability; the **CARE Principles** (Collective benefit, Authority to control, Responsibility, Ethics — <https://www.gida-global.org/care>) can pull the other way for data about Indigenous or other historically-surveilled communities, toward *restricted access under community authority*. When they conflict, CARE governs the access decision and FAIR governs the *form* of whatever is released. If the affected community wouldn't endorse the liberation, that's a stop, not a footnote.
+3. **Out-of-scope-use declaration.** Whatever ships, name the uses the project disavows.
+
+The wider policy and rights landscape (FOIA, the federal mandates, GDPR/CCPA, CARE, the international frame) is catalogued in [`open-government-landscape.md`](open-government-landscape.md).
+
 ### Project-internal governance
 
 Once the project is live, it acquires its own governance surface: who can change the schema, who reviews refresh PRs, how disagreements get resolved.
