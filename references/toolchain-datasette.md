@@ -189,6 +189,8 @@ Three patterns to lean into:
 - **Use `facets` to pre-declare browsable categoricals.** Datasette will auto-detect facetable columns, but declaring them sets the default view readers see first.
 - **Write canned queries for the questions readers will ask.** Per-contest totals, year-over-year change, top-N. Each canned query gets a clean URL anyone can cite.
 
+This `metadata.yaml` is already a **DCAT** / **DCAT-US**-shaped catalog record (the project is a Catalog, the database a Dataset, the CSV/SQLite/JSON-API its Distributions). For a project that needs to federate into a `data.gov`-style catalog, `scripts/publish.py` can emit a `dcat-us.jsonld` record from the same dictionary — optional, covered in [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds). Background, never a publishing prerequisite.
+
 ### `metadata.yaml` vs `datasette.yaml` (Datasette 1.0a8+)
 
 In the 1.0 alpha series, Datasette splits configuration into two files. **`metadata.yaml`** keeps dataset-identity content (title, description, license, source, per-table/column descriptions, canned queries). **`datasette.yaml`** carries server configuration (plugin settings, permissions, settings that used to live in `metadata.yaml`). 0.x deployments keep both in `metadata.yaml`. See the [annotated release notes for 1.0a8](https://docs.datasette.io/en/latest/changelog.html#a8-2024-02-07) to decide which file each setting belongs in. The pragmatic rule: civic projects on a stable footing should stay on 0.x and a single `metadata.yaml` until 1.0 ships stably.

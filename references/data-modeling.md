@@ -94,6 +94,8 @@ The schema goes *inside* the parser pipeline, not at the consumer boundary. Vali
 
 Hand-maintained, one entry per column. Lives at `docs/data-dictionary.md`. The IPEDS pipeline's `DATA_DICTIONARY.md` is the model.
 
+The dictionary plus the published `metadata.yaml` are an informal **DCAT** / **DCAT-US** catalog record (Catalog → Dataset → Distribution); emitting a formal DCAT record is an optional interoperability step covered in [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds), not a precondition for a good dictionary.
+
 Template per column:
 
 ```markdown
@@ -177,13 +179,15 @@ The audit trail. Three rules:
 
 Provenance is what makes the dataset *defensible*. When a downstream user finds an anomaly, the chain is: `(source, vintage)` in the processed CSV → matching row in `provenance.csv` → `source_url` and `sha256` → the original file in `data/original/`. Anyone with a clone can reproduce the extraction and verify.
 
+The sidecar is, in effect, a hand-rolled **W3C PROV** record — its columns map onto PROV's *Entity* (the source artifact), *Activity* (the parser run), and *Agent* (the project). You don't need to serialize PROV-O to benefit from naming the alignment; see [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds) for the optional deepening. Background, not a requirement.
+
 ## Data quality
 
 "Quality" is the deliverable, but it isn't one thing. The skill commits to a working definition: **data is high-quality when it is *fit for use*** (Juran 1974; Wang & Strong 1996). What "fit" means depends on what the user is doing with it, so the skill uses a multi-dimensional decomposition for naming what changed when a parser, schema, or audit changes.
 
 ### Five dimensions, mapped to pipeline operations
 
-This skill adopts the five-dimension naming from Cai & Zhu (2015) because it's organized from the *user's* perspective — the right framing for civic data where the publisher and the consumer are different organizations. Every pipeline operation maps to one of these dimensions, so when a reviewer asks "what improved?" or "what broke?" the answer is a dimension, not a vibe.
+This skill adopts the five-dimension naming from Cai & Zhu (2015) because it's organized from the *user's* perspective — the right framing for civic data where the publisher and the consumer are different organizations. Every pipeline operation maps to one of these dimensions, so when a reviewer asks "what improved?" or "what broke?" the answer is a dimension, not a vibe. (For the standards-minded: this decomposition parallels the W3C **Data Quality Vocabulary**; the optional alignment is sketched in [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds). It's background, not a measurement requirement.)
 
 | Dimension | What it covers | Where this skill produces it |
 |---|---|---|

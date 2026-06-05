@@ -17,6 +17,7 @@ A skill for generating Python data pipelines that liberate structured data from 
 - **Cleaning and standardization patterns.** The 9-step parser-time pipeline (profile → structural fixes → deduplication → missing-value treatment → outlier detection → normalization → validation + reject port → PII redaction → documentation), with concrete tooling per step (pandas, rapidfuzz / jellyfish / recordlinkage for fuzzy matching, presidio / scrubadub for PII, the impossible-value range table). See [`cleaning-and-standardization.md`](references/cleaning-and-standardization.md).
 - **Auditing and bulletproofing.** Discovery of new upstream sources, reconciliation against published totals, and a pre-extraction bulletproofing checklist mapping each practitioner check to a quality dimension. See [`discovery-and-audit.md`](references/discovery-and-audit.md).
 - **Movement context.** The civic-data tradition (Sunlight Foundation → PDF Liberation → PUDL → BoulderPublicData), four critical perspectives that shape what the skill commits to (empowering-intermediary self-description; the five activities request / digest / contribute / model / contest; information justice; contested data cultures), and the methodological lineage. Read [`movement-history.md`](references/movement-history.md) once at the start of a project so the framing is shared.
+- **Open data standards (background, not a constraint).** The official standards the skill's artifacts already informally implement — Sunlight's policy principles, DCAT-US / W3C DCAT (cataloging), W3C PROV-O (provenance), the Data Quality Vocabulary and Data on the Web Best Practices, the FAIR principles, and the FAIRsharing / re3data / NIEM registries and exchange models. This is background for *naming and optionally deepening* what the pipeline already does — never a conformance gate in front of shipping. See [`open-data-standards.md`](references/open-data-standards.md).
 
 ## When to use this skill
 
@@ -80,6 +81,8 @@ Before opening a Python file, answer:
 - *What corroborating sources exist?* A separate publisher of the same underlying phenomenon — federal mirror of state data, aggregator like Census or BLS, watchdog dataset that audits the original — turns reconciliation from "compare to the source's own total" into "compare to an independent count."
 
 If the user supplies a URL, FOIA tracking ID, prior repo, or paper, read it before drafting the Survey notes. If the user doesn't know, that's the time to web-search — but ask first; the user usually has better leads than the open web does.
+
+*Optional:* if the source sits in a domain that may already have a standard or a canonical repository (research data, health, justice, statistics), a five-minute check of the registries — [FAIRsharing](https://www.fairsharing.org/), [re3data](https://www.re3data.org/) — can surface an existing metadata standard to reuse instead of inventing one. See [`references/open-data-standards.md`](references/open-data-standards.md). Most civic projects find nothing binding and proceed; the check is cheap insurance, not a required step.
 
 Write a one-page Survey note (it becomes the seed of the project README). Decide whether this is **bespoke** (one-time extraction, single source, simple pipeline) or **infrastructural** (recurring data with vintages, multi-source, harmonized). The two cases share scaffolding but the second invests more upfront in `discover.py`, the concept catalog, and CI. Include the catalogued sources in `docs/methodology.qmd` from the start so the next contributor (or future Claude) doesn't re-discover them.
 
@@ -159,6 +162,8 @@ DuckDB earns the third slot because it queries the CSV directly with no load ste
 
 Generate `docs/data-dictionary.md` by hand (one row per column with type, units, source vocabulary, breakdown caveats). For multi-source projects, also maintain a **concept catalog** — a harmonization crosswalk that maps source-specific variable codes (e.g., IPEDS `EFTOTLT`, CDHE `TOTAL_HEADCOUNT`) to source-neutral concept names (e.g., `enrollment.headcount_fall_total`). The IPEDS pipeline's `concepts.py` (in its `pipeline/` package) is the canonical model; this skill's template puts the same module at `scripts/concepts.py`. Concepts carry not just labels but **caveats** explaining what is and isn't comparable across sources. See [`data-modeling.md`](references/data-modeling.md#concept-catalogs).
 
+The data dictionary, the per-extract `provenance.csv`, and the quality dimensions are, respectively, informal **DCAT**, **PROV-O**, and **DQV** records — naming the standard they match (optionally) earns interoperability cheaply; see [`open-data-standards.md`](references/open-data-standards.md#crosswalk-standards--what-the-skill-already-builds). This is background, not a documentation requirement.
+
 Validate the output with **pandera** schemas at the boundary of the pipeline plus **pytest** tests on parser behavior. Pandera schemas double as documentation. See [`data-modeling.md`](references/data-modeling.md#validation).
 
 ### 5. Audit — verify against the truth
@@ -178,6 +183,8 @@ The processed CSV is the deliverable. A complete liberation project ships *four*
 - **Document with [Quarto](https://quarto.org/) on [GitHub Pages](https://quarto.org/docs/publishing/github-pages.html)** — `.qmd` files in `docs/` (Markdown with executable code blocks) become the methodology, tutorials, and long-form data dictionary site. The `gh-pages.yml` workflow uses `quarto-dev/quarto-actions/publish@v2` with `target: gh-pages` to render and deploy on every push. Datasette serves the *data interface*; Quarto serves the *prose about how to use it*.
 - **Track large files with [Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage)** — Multi-gigabyte source PDFs, ZIP archives, and large Parquet outputs sit in LFS via `.gitattributes` patterns. Per-file limits are 2–5 GB depending on GitHub plan. **Architectural constraint: LFS does not work with GitHub Pages**, so the Quarto site links out to Datasette and to GitHub Releases for full-file downloads rather than embedding LFS-tracked data directly.
 - **(Optional) Datasette Agent** — A conversational LLM interface over the published database, released as alpha in May 2026. Useful for reader discovery once the canned queries and metadata are solid; not a substitute for either.
+
+*Optional standards pass:* the published `metadata.yaml` is already a **DCAT**-shaped catalog record; for a project that needs to federate into a `data.gov`-style catalog you can emit a `dcat-us.jsonld` alongside it, and a quick **FAIR** (Findable / Accessible / Interoperable / Reusable) or **DWBP** self-check is a useful "did we miss a license / stable identifier / provenance link?" review before announcing the dataset. Background and entirely optional — see [`open-data-standards.md`](references/open-data-standards.md). Never block shipping on it.
 
 The recurring-refresh pattern extends naturally: the cron-driven `discover → fetch → clean → audit` PR, when merged, triggers `publish.yml` (rebuild SQLite + deploy Datasette) and `gh-pages.yml` (re-render Quarto site). Three deploys, one upstream change.
 
@@ -214,6 +221,7 @@ For a new project the workflow is:
 ## Reference index
 
 - [`references/movement-history.md`](references/movement-history.md) — the data liberation tradition (Sunlight, PDF Liberation, MuckRock, PUDL, BoulderPublicData) plus academic framing (CRISP-DM, table understanding, data understanding dimensions). Read once at the start.
+- [`references/open-data-standards.md`](references/open-data-standards.md) — **background, not a constraint:** the official open-data standards the skill already informally implements (Sunlight policy guidelines, DCAT-US / W3C DCAT, PROV-O, DQV, DWBP, FAIR, FAIRsharing / re3data / NIEM), each profiled by history / precedents / standards organization / institutions / infrastructure, with a crosswalk from each standard to the existing skill artifact and an optional deepening step. For naming and optionally extending what the pipeline does — never a gate.
 - [`references/toolchain-pdf.md`](references/toolchain-pdf.md) — pdfplumber, camelot, tesseract; decision tree, common gotchas, fallback chains.
 - [`references/toolchain-tabular.md`](references/toolchain-tabular.md) — XLSX (including panel-format), CSV, Parquet, databases.
 - [`references/toolchain-documents.md`](references/toolchain-documents.md) — HTML, XML, JSON → tidy; `pandas.json_normalize` patterns.
