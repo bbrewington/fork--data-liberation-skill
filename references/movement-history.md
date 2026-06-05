@@ -46,6 +46,10 @@ Across these projects a few hard-won patterns recur:
 - **Documentation is half the work.** A liberation without a data dictionary, a crosswalk, and a provenance trail is a private spreadsheet. The point is reuse.
 - **Audit against originals.** A pipeline that doesn't reconcile against its source is faith-based. Reconciliation is what makes the dataset defensible.
 
+### The lineage is US-centric — the international frame
+
+The genealogy above (Sunlight, MuckRock, PUDL, BoulderPublicData, NPP) is entirely US and Anglophone, and so are the skill's default tools (GitHub, CC-BY, Datasette). That is a *deliberate scope boundary*, not a claim that liberation is a US phenomenon — and an agent working elsewhere should know which parts transfer. The **principles** are universal: immutable originals, tidy long-form, per-extract provenance, reconciliation against the source's own totals. The **implementation assumptions** are not: license regime (CC-BY may not be the local norm; some states prefer national public-domain or open licenses), portal software (much of the world publishes through **CKAN**, stewarded by the **Open Knowledge Foundation**, rather than a self-hosted Datasette), hosting, and document language. The international scaffolding — the **Open Government Partnership** (National Action Plans co-created with civil society), the **International Open Data Charter**, OKFN, the **World Bank Open Government Data Toolkit**, and fiscal-transparency bodies (the **International Budget Partnership** / Open Budget Index) — is catalogued in [`open-government-landscape.md`](open-government-landscape.md). When localizing, keep the principles and name the assumptions you're swapping.
+
 ### Critical perspectives worth absorbing
 
 The lineage above is told from inside the movement. Four claims from outside change how the artifacts get built:
