@@ -44,6 +44,15 @@ This checklist parallels the quality, provenance, and metadata best practices in
 - **Demand questionnaires/methodologies for survey-derived data.** Refusal to share methodology is a red flag worth naming. Identify non-scientific methods (web-based panels, self-selection) and bake that caveat into the dictionary.
 - **Cross-source corroboration.** Find an independent source for the same underlying phenomenon — a federal mirror of state data, an aggregator (Census, BLS), a watchdog dataset that audits the original. Two sources that match build confidence; two that diverge surface a story.
 
+### When the source path is a records request (FOIA / sunshine laws)
+
+If the data has to be *requested* rather than downloaded, the request itself is part of the Survey. A few process notes that change what you get back:
+
+- **Ask for data, not narrative.** Request the underlying records in their native machine-readable format ("the database export / the spreadsheet behind this report," not "a report about X"). Agencies often default to printing-to-PDF; naming the format you want up front avoids a re-request.
+- **Know the clock and the fee tiers.** Federal FOIA runs ~20 business days (often longer); fee categories differ for commercial vs. news-media/educational vs. other requesters, and waivers exist for public-interest requests. State **sunshine / open-records laws** vary — the records officer is the contact, and `FOIA.gov` routes federal requests.
+- **Treat redactions as findings, not just obstacles.** A heavily-redacted or truncated release can still carry usable tables; record what was withheld and the claimed exemption in `AGENTS.md` "Known limitations." An *excessive* redaction is itself a transparency story worth naming, not silently absorbing.
+- **Decide what the project will not liberate.** "Available to extract" is not the same as "responsible to publish." Where a release contains personal data that privacy law protects, or where the downstream use is one the project considers out of scope, that judgment belongs in the Survey, not after publication — see the governance section of [`project-template.md`](project-template.md#governance). The wider transparency-law and records-request landscape is catalogued in [`open-government-landscape.md`](open-government-landscape.md).
+
 ### Cognitive checks worth naming
 
 - *"If something doesn't seem right, it probably isn't."* The 50% year-over-year jump that doesn't appear in the press? Almost always an extraction bug, not a real spike.
