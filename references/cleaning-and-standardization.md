@@ -229,6 +229,8 @@ Beyond per-record validation:
 
 A liberation project is publishing data; whatever PII was in the original *and is not load-bearing for the public-interest analysis* should be redacted from `data/processed/` outputs. The original retains the source's content; the processed outputs obey the project's policy.
 
+Redaction is the *mechanical* step; the *decision* it implements lives one level up. Whether a dataset should be published at all under privacy law (GDPR Art. 17, CCPA) or the CARE principles is a governance gate — one of the few places in this skill that can mean *do not publish, or publish differently* — covered in [`project-template.md`](project-template.md#governance) and framed in [`open-government-landscape.md`](open-government-landscape.md). Apply the gate first; redaction carries out its verdict, it doesn't substitute for it.
+
 Common PII patterns and a regex starter set (use as a baseline; combine with a real library for production):
 
 | PII type | Regex (Python) | Replacement strategy |
