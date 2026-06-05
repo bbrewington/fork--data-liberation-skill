@@ -25,6 +25,8 @@ Each check below corresponds to a specific [data-quality dimension](data-modelin
 
 The documentation-and-contact checks are *state reconstruction* — the under-rotated, highest-leverage phase that happens before any measurement code is written. See [`data-modeling.md#pipeline-shape`](data-modeling.md#pipeline-shape).
 
+This checklist parallels the quality, provenance, and metadata best practices in the W3C **Data on the Web Best Practices** — DWBP is a useful published yardstick to skim once if you want an external "did we miss anything?" list, but the journalistic checklist here is the operational form. See [`open-data-standards.md`](open-data-standards.md#a-meta-synthesis-four-lenses-on-open-data) for the framing; it's background, not an added gate.
+
 ### Source-level checks
 
 - **Record count.** Confirm the total matches what the publisher claims (or what an independent count says it should be). Watch for *suspicious round limits* — 65,536 rows in an Excel export, 1,048,576 rows, exactly 10,000 rows, powers of two — they often mean the export was truncated upstream.

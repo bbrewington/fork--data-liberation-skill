@@ -18,6 +18,8 @@ A short, opinionated genealogy. Each project taught the community something that
 
 Sunlight's blog post coined the framing and the hackathon scaffolded the first wave of shared tooling. The lessons that survived: PDF extraction is per-document craft (no universal parser), open-source toolchains accumulate value across projects, and *most of the value is in documentation* (without provenance and a data dictionary, an extracted CSV is barely more useful than the original PDF).
 
+Sunlight also produced the *policy* counterpart to this activist history: the [Open Data Policy Guidelines](https://opendatapolicyhub.sunlightfoundation.com/guidelines/) (10 principles, 32 model provisions) that describe what publishers *should* do — the obligations whose absence makes liberation necessary. That standards-and-policy view, alongside DCAT-US, the W3C vocabularies, FAIR, and the research-data registries, lives in [`open-data-standards.md`](open-data-standards.md) as background context for naming and optionally deepening what a project already does.
+
 ### NPP / Tax Break — Recovery Act spending (2010s)
 
 The [NPP tax-break project](https://github.com/npp/tax-break/tree/master) was an early demonstration that *patient, source-by-source extraction* could produce a longitudinal dataset from federal disclosure PDFs that researchers and journalists could query. It pioneered the convention — now ubiquitous — of treating each agency × year PDF as its own parser, with a thin schema-conformance layer above.

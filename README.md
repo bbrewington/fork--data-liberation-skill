@@ -14,6 +14,7 @@ Loaded into a compatible agent (Claude Code, Claude.ai, VS Code Copilot, Cursor,
 - **Auditing and bulletproofing patterns.** Discovery of new upstream sources; reconciliation of processed data against authoritative top-line totals; a pre-extraction bulletproofing checklist mapping each practitioner check to a quality dimension; the cron-driven recurring-refresh PR pattern.
 - **A governance section.** License inheritance, data-subject considerations (CARE principles, out-of-scope use declarations), project-internal governance (schema-revision discipline, conflict-resolution paths), and downstream accountability (error-reporting paths, citation guidance, retraction-equivalent paths).
 - **The movement context.** The civic-data liberation tradition (Sunlight Foundation, PDF Liberation Working Group, MuckRock, PUDL, BoulderPublicData) and the scholarly critiques worth keeping in view — Baack's "empowering intermediary" framing, Schrock's five activities of civic hacking, Johnson's information-justice frame, Casemajor's contested-data-culture diagnosis.
+- **Open data standards, as background (not a constraint).** A synthesis of the official open-data frameworks the skill's artifacts already informally implement — the Sunlight Open Data Policy Guidelines, DCAT-US / W3C DCAT (cataloging), W3C PROV-O (provenance) and the Data Quality Vocabulary, the Data on the Web Best Practices, the FAIR principles, and the FAIRsharing / re3data / NIEM registries and exchange models — each profiled by history, precedents, standards organization, institutions, and infrastructure, with a crosswalk from each standard to the existing artifact (`provenance.csv` ≈ PROV, `metadata.yaml` ≈ DCAT, the quality dimensions ≈ DQV) and an optional deepening step. The skill treats these as background for *naming and optionally extending* what it does — never as added requirements or a gate in front of shipping.
 
 The skill triggers on phrases like "data liberation," "PDF extraction," "tidy data," "data dictionary," "crosswalk," "provenance," "reconcile," and "scrape this site" — and on any request that involves turning a document into a dataset someone else could reuse. See [SKILL.md](SKILL.md) for the full instructions.
 
@@ -28,6 +29,7 @@ data-liberation-skill/
 │   ├── cleaning-and-standardization.md  # 9-step parser-time cleaning pipeline
 │   ├── discovery-and-audit.md        # Bulletproofing, discover/audit/reconcile, recurring refresh
 │   ├── movement-history.md           # Civic-data lineage + critical perspectives + academic framing
+│   ├── open-data-standards.md        # Open-data standards as background: Sunlight, DCAT-US, PROV, DQV, DWBP, FAIR, registries
 │   ├── toolchain-pdf.md              # pdfplumber, camelot, tesseract decision tree
 │   ├── toolchain-tabular.md          # XLSX (incl. panel-format), CSV, Parquet, databases
 │   ├── toolchain-documents.md        # HTML, XML, JSON → tidy

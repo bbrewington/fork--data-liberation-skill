@@ -364,6 +364,8 @@ Template ships as `gh-pages.yml.disabled`. Enable once the project has a Quarto 
 
 Civic-data projects publish information about *people, institutions, and systems whose interests aren't always aligned with publication*. The skill scatters governance-relevant content across the data dictionary (caveats), provenance.csv (legal basis), the cleaning pipeline (PII redaction at step 8), and AGENTS.md (design decisions); this section names the *up-front* decisions every project should make explicitly. Treat this as a checklist run during the Survey phase, not a phase of its own — but the answers belong in AGENTS.md and the README, not in someone's head.
 
+The licensing, permanence, and non-discrimination decisions below track the **Sunlight Open Data Policy Guidelines** (10 principles) — the publisher-side policy frame whose gaps are *why* liberation work exists. Naming the principle a decision honors is optional background, not a compliance step; see [`open-data-standards.md`](open-data-standards.md#a-meta-synthesis-four-lenses-on-open-data).
+
 ### License inheritance
 
 The source's license is not the project's license. Many publishers attach terms (CORA-conditional, "for non-commercial use," "no redistribution without attribution") that the project must propagate or honor.
