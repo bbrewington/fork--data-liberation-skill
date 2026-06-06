@@ -47,8 +47,13 @@ DEFAULT_TEMPLATE_REPO = "https://github.com/brianckeegan/data-liberation-templat
 # The human-readable tag this corresponds to lives in DEFAULT_TEMPLATE_TAG below
 # (for messaging only). See RELEASING.md for the bump procedure when cutting a
 # new skill release.
+#
+# v0.4.0 is a skill-only release (the six-level restructure + reference
+# consolidation); the template bytes are unchanged, so the pin still points at
+# the v0.3.0 template commit — template v0.4.0 re-tags that same commit to keep
+# the skill/template version pair aligned.
 DEFAULT_TEMPLATE_VERSION = "72b202020c12056f19c828bff0b619cda5aadf64"
-DEFAULT_TEMPLATE_TAG = "v0.3.0"
+DEFAULT_TEMPLATE_TAG = "v0.4.0"
 
 # File suffixes we treat as text (substitute placeholders). Anything else is
 # copied byte-for-byte.
