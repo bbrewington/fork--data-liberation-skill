@@ -1,20 +1,16 @@
-# Toolchain: HTML, XML, JSON
+# Extract: HTML, XML, JSON, and proprietary documents
 
-This reference covers the structured-document formats that aren't tabular but are usually trying to be: HTML pages with tables (or with layout-as-tables), XML feeds and document formats (RSS, agency-specific schemas, GIS metadata), and JSON from APIs or document stores. The job is the same as with PDFs and XLSX — recover a tidy long-form DataFrame — but the failure modes are different and the tooling is calmer.
-
-For *scraping* HTML pages (managing dynamic content, polite request rates, cached fetches), see [`toolchain-scraping.md`](toolchain-scraping.md). This reference assumes you already have the document on disk or in a string.
+This part covers structured-document formats that aren't tabular but are usually trying to be: HTML pages with tables (or layout-as-tables), XML feeds and document formats (RSS, agency-specific schemas, GIS metadata), and JSON from APIs or document stores. The job is the same — recover a tidy long-form DataFrame — but the failure modes differ and the tooling is calmer. For *scraping* HTML pages (dynamic content, polite request rates, cached fetches), see [`extract-web.md`](extract-web.md); this part assumes you already have the document on disk or in a string.
 
 ## The document-understanding design space
 
-A liberation project chooses among per-format parsers (the rest of this reference) and *unified document extractors* (modern libraries that try to handle many formats end-to-end). Both have a role; choosing well saves work.
-
-**What civic data actually faces**, framed against the [awesome-document-understanding](https://github.com/tstanislawek/awesome-document-understanding) catalog of document-AI research:
+A liberation project chooses among per-format parsers (the rest of this part) and *unified document extractors* (modern libraries that handle many formats end-to-end). **What civic data actually faces**, framed against the [awesome-document-understanding](https://github.com/tstanislawek/awesome-document-understanding) catalog of document-AI research:
 
 | Document type the source is | Civic examples | Default approach |
 |---|---|---|
 | **Born-digital structured** — XML, JSON, RSS, EDGAR / USPTO XBRL filings | Agency XML dumps, open-data portals, regulatory filings | `lxml`, `pd.read_xml`, `pd.json_normalize` — sections below |
 | **Born-digital narrative HTML** — clean DOM with `<table>` or `<div>` rows | Agency dashboards, FOIA case logs, legislative records | `pandas.read_html` for tables; `selectolax` for layout-as-tables — sections below |
-| **Born-digital PDF with text layer** — selectable text, possibly with tables | Statements of vote, annual reports, budget books | `pdfplumber` / `camelot` — see [`toolchain-pdf.md`](toolchain-pdf.md) |
+| **Born-digital PDF with text layer** — selectable text, possibly with tables | Statements of vote, annual reports, budget books | `pdfplumber` / `camelot` — see [`extract-pdf.md`](extract-pdf.md) |
 | **Scanned image PDF** — no text layer | Older Statements of Vote, scanned FOIA responses, faxed records | OCR via `tesseract` + `pdf2image`, or a VLM-based pipeline via `docling` |
 | **Visually-rich documents** — layout *bears meaning* (a field's position on the page is part of its identity) | Invoices, applications, structured forms, agency cover sheets | `docling` (layout-aware) or a key-information-extraction model |
 | **Mixed-media documents** — PDFs with embedded narrative + tables + footnotes + figures | Comprehensive plans, environmental impact statements, court opinions | `docling` for unified extraction with reading-order preserved; per-component decomposition if you need to attribute each row to a page region |
@@ -38,10 +34,10 @@ Need bulk extraction across many heterogeneous formats  → kreuzberg
 Need a layout-aware embedding for downstream RAG        → docling (export DocTags)
 Need scanned-PDF text with no per-source tuning         → docling (VLM pipeline) or kreuzberg
 Need structured key/value extraction from forms         → docling + a KIE prompt, or a dedicated KIE model
-Need fine control over OCR config per source/vintage    → tesseract directly — see toolchain-pdf.md
+Need fine control over OCR config per source/vintage    → tesseract directly — see extract-images.md
 ```
 
-The rest of this reference covers the per-format tools that the right-hand side of that tree calls into.
+The rest of this part covers the per-format tools that the right side of that tree calls into.
 
 ## HTML
 
@@ -63,7 +59,7 @@ For local files, pass a path; for HTML strings, pass the string. `pd.read_html` 
 
 Common refinements:
 
-- **Multi-row headers:** `pd.read_html(..., header=[0, 1])` for stacked headers; flatten the `MultiIndex` afterward as in `toolchain-tabular.md`.
+- **Multi-row headers:** `pd.read_html(..., header=[0, 1])` for stacked headers; flatten the `MultiIndex` afterward as in the tabular part.
 - **Skip rows:** `pd.read_html(..., skiprows=2)` for tables preceded by title rows.
 - **Encoding:** `pd.read_html(..., encoding="utf-8")` if the page lies about its encoding via the HTTP header.
 - **Specific table:** Use `match=` with a regex to pick the table by a string in its caption or contents: `pd.read_html(url, match="Statement of Vote")`.
@@ -72,7 +68,7 @@ What `pd.read_html` does *not* do:
 
 - Recover meaning from CSS-styled layouts (`<div>`-as-tables; tables drawn with `<span>` and `display: grid`). For those, drop to a parser.
 - Resolve nested tables sensibly. If a table contains another table in a cell, the result is ugly; reach for `selectolax` or `lxml`.
-- Handle JavaScript-rendered content. The HTML must already be in the document; if it's injected by JS, use `playwright` per `toolchain-scraping.md`.
+- Handle JavaScript-rendered content. The HTML must already be in the document; if it's injected by JS, use `playwright` per [`extract-web.md`](extract-web.md).
 
 ### `selectolax` for layout-as-tables and structured non-table content
 
@@ -306,7 +302,7 @@ def paginate_cursor(base_url):
                 break
 ```
 
-Both should be paired with `requests-cache` (idempotent reruns) and a `tenacity` retry decorator (transient API failures). See `toolchain-scraping.md` for the polite-request budget — the same etiquette applies to API consumption.
+Both should be paired with `requests-cache` (idempotent reruns) and a `tenacity` retry decorator (transient API failures). See [`extract-web.md`](extract-web.md) for the polite-request budget — the same etiquette applies to API consumption.
 
 ## Narrative documents in proprietary formats — DOCX, RTF, and the markdown-as-intermediate pattern
 
@@ -355,6 +351,8 @@ For very large source documents (multi-GB XML, JSON dumps), keep the original on
 | JSON file claims `utf-8` but `json.load` raises `UnicodeDecodeError` | File has a BOM or is actually `utf-8-sig` | `json.loads(Path(p).read_text(encoding="utf-8-sig"))` |
 | Selectolax's `css_first` returns `None` and the parser crashes | Selector matches nothing on some pages; assumed every page had the element | Check for `None` before `.text()`; commit a page where the element is missing as a fixture |
 | API pagination loops forever | `next_cursor` returned but it's the same as the previous one | Detect repeat cursor and break; also bound by a max-pages safety limit |
+
+---
 
 ## What to write in the AGENTS.md
 

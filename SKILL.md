@@ -1,43 +1,64 @@
 ---
 name: data-liberation
-description: Build Python data pipelines that liberate structured data from unstructured and semi-structured sources — government PDFs, FOIA releases, scanned reports, scraped HTML, panel-format spreadsheets — into tidy, documented, reproducible civic datasets. Use whenever the user wants to extract tables or data from PDFs, scrape a government or institutional site for tabular data, scaffold a reproducible data project, harmonize records across multiple sources, add a new vintage or source to an existing pipeline, write a data dictionary or crosswalk, audit data against originals, or wrangle messy historical data. Trigger on phrases like "data liberation," "PDF extraction," "tidy data," "data dictionary," "crosswalk," "provenance," "reconcile," "scrape this site," even when the user does not name the skill explicitly; if the request involves turning a document into a dataset someone else could reuse, this skill applies. Do not trigger for pure ML model training or generic Python tutoring unrelated to data extraction.
+description: Build Python data pipelines that liberate structured data from unstructured and semi-structured sources — government PDFs, FOIA releases, scanned reports, scraped HTML, panel-format spreadsheets — into tidy, documented, reproducible civic datasets. Works at six escalating levels, from a one-shot "just give me the CSV" extraction (L0) up to a fully published, governed, multi-source pipeline (L5) — start low and climb only as far as the task needs. Use whenever the user wants to extract tables or data from PDFs, get a CSV out of a document, scrape a government or institutional site for tabular data, scaffold a reproducible data project, harmonize records across multiple sources, write a data dictionary or crosswalk, audit data against originals, publish a dataset, or wrangle messy historical data. Trigger on phrases like "data liberation," "PDF extraction," "get the data out," "tidy data," "data dictionary," "crosswalk," "provenance," "reconcile," "scrape this site," even when the user does not name the skill explicitly; if the request involves turning a document into a dataset someone else could reuse, this skill applies. Do not trigger for pure ML model training or generic Python tutoring unrelated to data extraction.
 ---
 
 # Data Liberation
 
-A skill for generating Python data pipelines that liberate structured data from documents — PDFs, scraped pages, panel-format spreadsheets, scanned archives — into tidy, documented, reproducible datasets in the civic-data tradition.
+A skill for turning documents — PDFs, scraped pages, panel-format spreadsheets, scanned archives — into tidy, documented, reproducible datasets in the civic-data tradition. It operates at **six increasing levels of complexity**: getting a CSV out of a PDF is one command and one level; a fully published, governed, multi-source pipeline is the same skill, five levels up. Start at the lowest level that satisfies the request and offer to climb — never make a user buy the whole apparatus to get a table out of a PDF.
 
-"High-quality" means *fit for use* across five dimensions — availability, usability, reliability, relevance, and presentation. Each pipeline operation maps to a specific dimension; the [data-quality reference](references/data-modeling.md#data-quality) is the lookup. The skill stops short of modeling: it builds the artifact, but the politics of who benefits — open data ≠ information justice — is the maintainer's explicit responsibility in the README and AGENTS.md ([critical perspectives](references/movement-history.md#critical-perspectives-worth-absorbing)).
+## The six levels
 
-## What this skill encodes
+Each level *adds* to the one before. The levels describe **how far** a given engagement goes; the [six-phase workflow](#the-six-phase-workflow) below describes **how** the work gets done within a project.
 
-- **A project template.** Immutable originals → processed tidy data → audit reports → lookups (crosswalks). Bootstrap from single-source, structured for multi-source from day one. See [`references/project-template.md`](references/project-template.md). The working example lives in a separate repo, [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), fetched on demand by `scripts/scaffold.py`.
-- **Toolchain decision trees.** When to use pdfplumber vs. camelot vs. tesseract; requests + BeautifulSoup vs. headless browser vs. archived snapshots; how to read XLSX / CSV / Parquet / databases and normalize HTML / XML / JSON. See [`toolchain-pdf.md`](references/toolchain-pdf.md), [`toolchain-tabular.md`](references/toolchain-tabular.md), [`toolchain-documents.md`](references/toolchain-documents.md), [`toolchain-scraping.md`](references/toolchain-scraping.md).
-- **Documentation conventions and quality dimensions.** Data dictionaries, harmonization crosswalks with caveats, per-extract provenance, the five-dimension quality framework, and the profiling / measurement / monitoring decomposition for what `audit.py` does. See [`data-modeling.md`](references/data-modeling.md).
-- **Cleaning and standardization patterns.** The 9-step parser-time pipeline (profile → structural fixes → deduplication → missing-value treatment → outlier detection → normalization → validation + reject port → PII redaction → documentation), with concrete tooling per step (pandas, rapidfuzz / jellyfish / recordlinkage for fuzzy matching, presidio / scrubadub for PII, the impossible-value range table). See [`cleaning-and-standardization.md`](references/cleaning-and-standardization.md).
-- **Auditing and bulletproofing.** Discovery of new upstream sources, reconciliation against published totals, and a pre-extraction bulletproofing checklist mapping each practitioner check to a quality dimension. See [`discovery-and-audit.md`](references/discovery-and-audit.md).
-- **Movement context.** The civic-data tradition (Sunlight Foundation → PDF Liberation → PUDL → BoulderPublicData), four critical perspectives that shape what the skill commits to (empowering-intermediary self-description; the five activities request / digest / contribute / model / contest; information justice; contested data cultures), and the methodological lineage. Read [`movement-history.md`](references/movement-history.md) once at the start of a project so the framing is shared.
-- **Open data standards (background, not a constraint).** The official standards the skill's artifacts already informally implement — Sunlight's policy principles, DCAT-US / W3C DCAT (cataloging), W3C PROV-O (provenance), the Data Quality Vocabulary and Data on the Web Best Practices, the FAIR principles, and the FAIRsharing / re3data / NIEM registries and exchange models. This is background for *naming and optionally deepening* what the pipeline already does — never a conformance gate in front of shipping. See [`open-data-standards.md`](references/open-data-standards.md).
-- **Open government landscape (background, not a constraint).** The civic and institutional context around the data: transparency law and records requests (FOIA, state sunshine laws), the US federal open-data mandates (OMB M-13-13, the OPEN Government Data Act / Evidence Act, the DATA Act), the civic-tech consumer ecosystem, institutional portals (data.gov, CKAN, Socrata), and the international frame (Open Government Partnership, the International Open Data Charter, OKFN). Includes a catalogue of referenced resources and an honest gap-analysis of where the skill's small-team, US, self-hosted defaults meet the institutional/global picture. See [`open-government-landscape.md`](references/open-government-landscape.md).
+| Level | Name | The "___ path" | What it adds | Primary reference |
+|---|---|---|---|---|
+| **L0** | Extract | "just the data" | The CSV(s). **No scaffold, no project** — read the source, emit the table, done. | [`extract-*` family](references/extract-pdf.md) (pdf · tabular · documents · web · images) |
+| **L1** | + Documentation | "make it citable" | A data dictionary, a per-extract `provenance.csv`, a short README / Survey note, a one-line ethics note | [`data-modeling.md`](references/data-modeling.md#data-dictionary), [`context.md`](references/context.md) |
+| **L2** | + Pipeline & Audit | "someone can re-run this" | A scaffolded project, `pipeline.py`, a pandera schema contract, `audit.py`, `reconcile.py`, the reject port | [`project-template.md`](references/project-template.md), [`pipeline.md`](references/pipeline.md) |
+| **L3** | + Harmonization | "the multi-source path" | A concept catalog / crosswalk (`concepts.py`) with caveats — the cross-source-equivalence contract | [`data-modeling.md`](references/data-modeling.md#concept-catalogs) |
+| **L4** | + Standards & Governance | "publishable, responsibly" | DCAT / PROV / DQV / FAIR naming (optional, never a gate); a full governance section | [`context.md`](references/context.md), [`project-template.md`](references/project-template.md#governance) |
+| **L5** | + Publishing | "queryable, documented, distributed" | Datasette, a Quarto docs site, Git LFS, DocumentCloud | [`publishing.md`](references/publishing.md) |
 
-## When to use this skill
+**Guardrail: L0 and L1 must NOT run `scripts/scaffold.py`.** Getting to a CSV is frictionless by design; the scaffold is an L2+ commitment. Emitting a stray project skeleton for a one-shot extraction is the single most common way this skill becomes an adoption blocker.
 
-Trigger when the user is:
-- starting a new data liberation project from a PDF, FOIA release, scraped site, panel-format Excel, or other unstructured source
-- adding a new source or vintage to an existing liberation pipeline
-- asking how to extract tables from a specific document
-- asking how to scaffold or structure a reproducible civic data project
-- asking how to document, audit, or harmonize data from multiple sources
-- wrangling messy historical data (mixed formats across years, mid-period schema changes, OCR-only old vintages)
+### How to surface levels — infer, confirm, climb
 
-Hand off to other tools when:
-- the task is genuinely a one-line snippet ("read this PDF and tell me what it says") — answer directly, but mention this skill exists if the user is thinking about doing this more than once
-- the user wants ML modeling on already-clean data — outside scope; this skill ends where modeling begins
-- the user wants generic Python help unrelated to data extraction
+Do not ask the user to read this table. Instead:
 
-## The six-phase workflow
+1. **Infer** the *lowest* level that satisfies the request, from the phrasing (table below).
+2. **State the assumption and offer a redirect**, in one sentence: *"This reads like **L0** — just the data. I'll start there unless you want the reproducible-pipeline path (L2)."*
+3. **Execute** that level fully.
+4. **Offer the next rung** at the end: *"Done — here's `data.csv`. Want me to go to **L1** and add a data dictionary + provenance so this is citable?"*
 
-This skill maps to the CRISP-DM phases of **data understanding → preparation → deployment**, deliberately stopping before modeling and evaluation (which are the analyst's domain after liberation is done). The framing comes from Shigarov's [table understanding survey](references/movement-history.md#academic-framing) and Holstein et al.'s [data understanding dimensions](references/movement-history.md#academic-framing); the workflow itself is distilled from PUDL, the Boulder Public Data repos, and the IPEDS pipeline.
+When the user names a level, jump straight to it. When signals span levels, infer the highest explicitly named level but **start at the lowest prerequisite and climb**, confirming at each rung.
+
+| User phrasing signals | Infer |
+|---|---|
+| "get the data out," "give me a CSV," "extract the table from this PDF," "what's in this spreadsheet," "scrape this page into a table" | **L0** |
+| "so I can cite it," "document this," "data dictionary," "what do the columns mean," "make this reusable," "where did this come from," "provenance" | **L1** |
+| "reproducible," "pipeline," "so someone can re-run it," "audit," "validate against the original," "reconcile," "schema," "add tests" | **L2** |
+| "harmonize," "crosswalk," "combine these two sources," "compare across years/agencies," "concept catalog," "make them comparable" | **L3** |
+| "standards," "DCAT / FAIR / PROV," "governance," "license," "PII / privacy," "CARE," "is it OK to publish," "FOIA redactions" | **L4** |
+| "publish," "Datasette," "queryable," "put it online," "documentation site," "Quarto," "Git LFS / large files," "DocumentCloud," "embed the source docs" | **L5** |
+| "scaffold a new civic data project," "set up a data liberation project" | **L2** (the full scaffold is the explicit ask) |
+
+The level menu, if a user asks what the skill can do:
+
+```
+Data-liberation has six levels, each adding to the one before:
+  L0  Extract            → source to CSV. No setup. "Just the data."
+  L1  + Documentation    → data dictionary, provenance, README note. Now citable.
+  L2  + Pipeline & Audit → scaffolded, reproducible, validated. "Someone can re-run this."
+  L3  + Harmonization    → crosswalks across sources, with caveats. Multi-source.
+  L4  + Standards & Gov  → DCAT/PROV/FAIR naming + governance/ethics. Publishable responsibly.
+  L5  + Publishing       → Datasette, Quarto site, Git LFS, DocumentCloud.
+I'll start at the lowest level that fits your ask and offer to climb. Say a level to jump there.
+```
+
+## How levels and phases relate
+
+A project does its work in six phases. A *level* is how many of those phases (and which artifacts) a given engagement actually reaches.
 
 ```
 ┌─────────┐  ┌──────────┐  ┌─────────┐  ┌──────┐  ┌───────┐  ┌─────────┐
@@ -47,219 +68,177 @@ This skill maps to the CRISP-DM phases of **data understanding → preparation �
   the source   the project   + tables out  document   vs. truth  Datasette
 ```
 
-**Vocabulary alignment with industry frameworks.** This skill's six phases map onto the steps named by mainstream data-workflow frameworks (e.g., Monte Carlo's 8-step model and adjacent dbt/observability vocabularies). Use these as searchable synonyms — the names differ; the work is the same:
+| Level | Phases it reaches |
+|---|---|
+| **L0** | Extract |
+| **L1** | (light Survey) + Extract + Tidy's *documentation* artifacts |
+| **L2** | Survey + Scaffold + Extract + Tidy + Audit |
+| **L3** | adds the multi-source harmonization part of Tidy |
+| **L4** | adds the cross-cutting governance/standards pass |
+| **L5** | adds Publish |
+
+## When to use this skill
+
+Trigger when the user is:
+- starting a new data liberation project from a PDF, FOIA release, scraped site, panel-format Excel, or other unstructured source
+- asking how to extract tables from a specific document, or just wanting the data out of one
+- adding a new source or vintage to an existing liberation pipeline
+- asking how to scaffold, document, audit, harmonize, or publish a reproducible civic data project
+- wrangling messy historical data (mixed formats across years, mid-period schema changes, OCR-only old vintages)
+
+Hand off when:
+- the task is a genuine one-liner ("read this PDF and tell me what it says") — answer directly (that *is* L0); mention the skill can go further if they'll do this more than once
+- the user wants ML modeling on already-clean data — out of scope; this skill ends where modeling begins
+- the user wants generic Python help unrelated to data extraction
+
+## The six-phase workflow
+
+This skill maps to the CRISP-DM phases of **data understanding → preparation → deployment**, deliberately stopping before modeling and evaluation (the analyst's domain after liberation is done). The framing is distilled from PUDL, the Boulder Public Data repos, and the IPEDS pipeline; the academic grounding is in [`context.md`](references/context.md#academic-framing).
+
+**Vocabulary alignment with industry frameworks.** The six phases map onto the steps named by mainstream data-workflow frameworks (Monte Carlo's 8-step model, adjacent dbt / observability vocabularies). Use these as searchable synonyms — the names differ; the work is the same:
 
 | Industry term | This skill's phase | What's named |
 |---|---|---|
 | **Goal Planning / Data Identification** | Survey | `discover.py` + Survey notes; unit-of-observation choice; codebook hunt |
 | **Data Extraction** | Extract | `fetch.py` + per-vintage parsers' `read_*` calls |
-| **Data Cleaning and Transformation** | Tidy (+ the cleaning pipeline) | 9-step parser-time pipeline in [`cleaning-and-standardization.md`](references/cleaning-and-standardization.md) |
-| **Data Loading** | end of Tidy / start of Publish | `clean.py` writing the canonical CSV; `publish.py build` materializing the SQLite |
-| **Data Validation** | Audit | `pandera` schema at the boundary; `audit.py`; `reconcile.py` against authoritative totals; the reject port |
+| **Data Cleaning and Transformation** | Tidy (+ the cleaning pipeline) | 9-step parser-time pipeline in [`pipeline.md`](references/pipeline.md#the-cleaning-pipeline) |
+| **Data Loading** | end of Tidy / start of Publish | `clean.py` writing the canonical CSV; `publish.py build` materializing SQLite |
+| **Data Validation** | Audit | `pandera` schema at the boundary; `audit.py`; `reconcile.py`; the reject port |
 | **Data Lineage** | (within Audit) | `provenance.csv` per-extract sidecar joined by `(source, vintage)` |
 | **Data Observability** | (within Audit) | The diff-able `data/audit/summary-*.md` reviewed on every refresh PR |
-| **Data Governance** | (cross-cutting) | License inheritance, PII redaction policy, data-subject considerations, downstream-accountability path — see the *Governance* section of [`project-template.md`](references/project-template.md#governance) |
-| **Data Analysis and Modeling** | **Out of scope** | This skill deliberately stops at the deployment phase of CRISP-DM |
-| **Data Maintenance** | recurring-refresh pattern | Cron-driven `discover → fetch → clean → audit` opening a reviewable PR; see [`discovery-and-audit.md`](references/discovery-and-audit.md) |
+| **Data Governance** | (cross-cutting, L4) | License inheritance, PII policy, data-subject considerations — see [`project-template.md`](references/project-template.md#governance) |
+| **Data Analysis and Modeling** | **Out of scope** | The skill stops at the deployment phase of CRISP-DM |
+| **Data Maintenance** | recurring-refresh pattern | Cron-driven `discover → fetch → clean → audit` opening a reviewable PR; see [`pipeline.md`](references/pipeline.md#the-recurring-refresh-pattern-cron--pr) |
 
-The reason for the alignment isn't to import the industry framings wholesale — it's so an agent that arrives via a Monte Carlo / dbt / Dagster context finds the right place in the skill, and so a search for "data validation" or "data lineage" lands somewhere useful.
+### 1. Survey — understand the source before touching code (L1+)
 
-### 1. Survey — understand the source before touching code
+Before opening a Python file, answer: **What is this document?** (born-digital PDF, scanned PDF, HTML, panel-format XLSX, CSV, JSON, database export?) **What is the unit of observation?** (one row per ballot? per precinct × contest × candidate? per institution × year × variable? — the most consequential, hard-to-reverse decision). **What are the structural quirks?** (merged headers, tables split across pages, footnotes that change column meaning, mid-period schema changes). **What is the public-interest stake, and what history of access does the source have?** (FOIA / MuckRock / CORA requests, prior journalism — cite in the README.)
 
-Before opening a Python file, answer:
+**Ask before assuming.** Before writing code, ask the user what *documentation* exists (codebooks, the publisher's own dictionary, the mandating statute — almost always more reliable than reverse-engineering), what *prior work* has touched the data (journalism, papers, FOIA logs, past GitHub repos), the *canonical contact* (records officer, the journalist who last covered it), and what *corroborating source* could turn reconciliation from "compare to the source's own total" into "compare to an independent count." If the user supplies a URL, FOIA ID, prior repo, or paper, read it first. The full bulletproofing checklist is in [`pipeline.md`](references/pipeline.md#pre-extraction-bulletproofing); the FOIA / records-request process and the standards-registry check are background in [`context.md`](references/context.md). Background, not a gate.
 
-- **What is this document?** Born-digital PDF (text extractable), scanned PDF (image-only, needs OCR), HTML page, panel-format XLSX, CSV, JSON API response, database export? Frame the extraction problem against the [Table Understanding taxonomy](references/movement-history.md#table-understanding-tu) — naming the subproblem (Table Detection? Structure Recognition? Functional Analysis? Canonicalization?) clarifies what's hard.
-- **What is the unit of observation?** One row per ballot? Per precinct × contest × candidate? Per institution × year × variable? This is the most consequential design decision and is hard to change later.
-- **What are the structural quirks?** Merged header cells; tables split across pages; footnotes that change column meaning; mid-period schema changes; multiple tables on one page; narrative-embedded numbers.
-- **What is the public-interest stake?** Who collected this, who needs it, what gets lost if no one liberates it? This shapes documentation priorities later.
-- **What history of access does the source have?** Has it been the subject of FOIA, MuckRock, or CORA requests? Is there a journalistic record of similar liberation work? Cite this in the README.
+Write a one-page Survey note (it seeds the README). Decide whether this is **bespoke** (one-time, single source — often L0/L1) or **infrastructural** (recurring, multi-source, harmonized — L2+). The two share scaffolding; the second invests more upfront in `discover.py`, the concept catalog, and CI.
 
-**Search and catalog — ask before assuming.** Before writing any code, ask the user explicitly:
+### 2. Scaffold — set up the project (L2+)
 
-- *What documentation exists for this source?* Codebooks, methodology PDFs, the publisher's own data dictionary, the survey questionnaire, the statute or regulation that mandates the publication. The original documentation is almost always more reliable than reverse-engineered guesses.
-- *What prior work has touched this data?* Existing journalism, academic papers, FOIA logs, NICAR/IRE tipsheets, agency white papers, GitHub repos of past extraction attempts. A prior liberation effort (even a failed one) catches you up on the quirks for free.
-- *What's the canonical contact?* The publisher's records officer, the journalist who last covered it, the academic who maintains a derivative dataset, the open-government group that's been pestering the agency. ProPublica's [data-bulletproofing checklist](references/discovery-and-audit.md#pre-extraction-bulletproofing) treats "ask the source" as a baseline practice, not an escalation.
-- *What corroborating sources exist?* A separate publisher of the same underlying phenomenon — federal mirror of state data, aggregator like Census or BLS, watchdog dataset that audits the original — turns reconciliation from "compare to the source's own total" into "compare to an independent count."
+**Skip this entire phase at L0 and L1** — emit the data and its documentation directly to the user's working directory; do not generate a project skeleton.
 
-If the user supplies a URL, FOIA tracking ID, prior repo, or paper, read it before drafting the Survey notes. If the user doesn't know, that's the time to web-search — but ask first; the user usually has better leads than the open web does.
-
-*Optional:* if the source sits in a domain that may already have a standard or a canonical repository (research data, health, justice, statistics), a five-minute check of the registries — [FAIRsharing](https://www.fairsharing.org/), [re3data](https://www.re3data.org/) — can surface an existing metadata standard to reuse instead of inventing one. See [`references/open-data-standards.md`](references/open-data-standards.md). Most civic projects find nothing binding and proceed; the check is cheap insurance, not a required step.
-
-*Also in Survey:* if the data has to be *requested* rather than downloaded (FOIA, a state sunshine law), or if a release may contain personal data that privacy law protects, the records-request process notes and the "what the project will not liberate" scope check live in [`references/discovery-and-audit.md`](references/discovery-and-audit.md#when-the-source-path-is-a-records-request-foia--sunshine-laws); the wider transparency-law, civic-tech, and international landscape (and a catalogue of referenced resources) is in [`references/open-government-landscape.md`](references/open-government-landscape.md). Background, not a gate.
-
-Write a one-page Survey note (it becomes the seed of the project README). Decide whether this is **bespoke** (one-time extraction, single source, simple pipeline) or **infrastructural** (recurring data with vintages, multi-source, harmonized). The two cases share scaffolding but the second invests more upfront in `discover.py`, the concept catalog, and CI. Include the catalogued sources in `docs/methodology.qmd` from the start so the next contributor (or future Claude) doesn't re-discover them.
-
-### 2. Scaffold — set up the project
-
-**New project:** Run `scripts/scaffold.py` (it fetches the template from [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), renders the placeholders, and writes the project). Read [`references/project-template.md`](references/project-template.md) for the prose explanation of what each file in the skeleton does and why. Do not invent a parallel structure. The skeleton (with exact directory names) is:
+**New project (L2+):** Run `scripts/scaffold.py` (it fetches the template from [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), renders placeholders, and writes the project). Read [`references/project-template.md`](references/project-template.md) for what each file does and why. Do not invent a parallel structure. The skeleton, abbreviated:
 
 ```
 project-name/
-├── data/
-│   ├── original/    <- immutable raw downloads (committed via LFS if large)
-│   ├── processed/   <- tidy CSVs / parquet produced by the pipeline
-│   ├── audit/       <- auto-generated audit + reconciliation reports
-│   └── lookups/     <- JSON crosswalks, schema, code systems, etc.
-├── scripts/
-│   ├── schema.py    <- canonical column definitions, dtype coercion
-│   ├── sources.py   <- Source ABC + Artifact dataclass
-│   ├── config.py    <- paths, HTTP defaults, SOURCES registry
-│   ├── fetch.py     <- idempotent downloader (hash + manifest)
-│   ├── clean.py     <- orchestrator that routes per source/vintage
-│   ├── audit.py     <- summary stats → Markdown report
-│   ├── pipeline.py  <- end-to-end driver
-│   └── parsers/     <- per-source, per-vintage parsers
-├── tests/           <- pytest suite (schema contracts, parser fixtures)
-├── docs/
-│   ├── data-dictionary.md       <- one row per column, hand-maintained
-│   └── filter-pivot-recipes.md  <- pandas + tidyverse + DuckDB recipes
-├── AGENTS.md        <- architecture, gotchas, future-agent handbook
-├── README.md        <- quickstart + data summary + movement context
-├── pyproject.toml   <- uv-managed env (see template)
-├── .gitignore
-└── .github/workflows/  <- (opt-in) tests on push + scheduled refresh
+├── data/{original,processed,audit,lookups}/   <- immutable raw → tidy → reports → crosswalks
+├── scripts/{schema,sources,config,fetch,clean,audit,pipeline}.py + parsers/
+├── tests/                                      <- pytest: schema contracts, parser fixtures
+├── docs/{data-dictionary.md, filter-pivot-recipes.md}
+├── AGENTS.md  README.md  pyproject.toml  .github/workflows/
 ```
 
-**Existing project:** Identify where the new source fits in the existing Source registry. Read the project's `AGENTS.md` for conventions, then implement the `Source` contract (`discover` + `ingest`) in a new module under `scripts/parsers/`.
+The full annotated tree is in [`project-template.md`](references/project-template.md#the-skeleton). Bootstrap from single-source but keep the multi-source-ready layout (`scripts/parsers/<source>_<vintage>.py`, `data/original/<source>/<vintage>/`) from day one so a second source is a parser file, not a refactor.
 
-Bootstrap from single-source; keep the multi-source-ready layout (`scripts/parsers/<source>_<vintage>.py`, `data/original/<source>/<vintage>/`) from day one so adding a second source later is a parser file, not a refactor.
+**Existing project:** Read the project's `AGENTS.md` for conventions, identify where the new source fits in the Source registry, then implement the `Source` contract in a new module under `scripts/parsers/`.
 
-### 3. Extract — pull text and tables out
+### 3. Extract — pull text and tables out (L0+)
 
-Match the input type to the toolchain:
+Match the input type to the toolchain, then open **only the extraction reference for the input you have** — the L0 toolchain is split by input so an agent extracting a PDF never loads the scraping or OCR material. Per-tool guidance, decision trees, and gotchas live in each file:
 
-| Input | Default tool | Fallback | Reference |
-|---|---|---|---|
-| Born-digital PDF, text-based table | `pdfplumber` | `camelot` (lattice) | [`toolchain-pdf.md`](references/toolchain-pdf.md) |
-| Born-digital PDF, ruled grid | `camelot` (lattice mode) | `pdfplumber` | [`toolchain-pdf.md`](references/toolchain-pdf.md) |
-| Scanned / image PDF | `tesseract` via `pytesseract` | manual transcription | [`toolchain-pdf.md`](references/toolchain-pdf.md) |
-| HTML page with table | `pandas.read_html` then refine; `BeautifulSoup` for layout-as-tables | `lxml` directly | [`toolchain-documents.md`](references/toolchain-documents.md) |
-| HTML page, no table tag | `BeautifulSoup` + CSS selectors | `playwright` if JS-rendered | [`toolchain-scraping.md`](references/toolchain-scraping.md) |
-| Nested JSON | `pandas.json_normalize` | manual flatten | [`toolchain-documents.md`](references/toolchain-documents.md) |
-| XML | `lxml.etree` + XPath | `pandas.read_xml` for simple cases | [`toolchain-documents.md`](references/toolchain-documents.md) |
-| XLSX (clean) | `pandas.read_excel` | `openpyxl` directly | [`toolchain-tabular.md`](references/toolchain-tabular.md) |
-| XLSX (panel format, merged cells) | `openpyxl` + manual unmerge | per-vintage parser | [`toolchain-tabular.md`](references/toolchain-tabular.md) |
-| CSV / TSV | `pandas.read_csv` with explicit dtypes | `csv` module for malformed rows | [`toolchain-tabular.md`](references/toolchain-tabular.md) |
-| Parquet | `pandas.read_parquet` (pyarrow engine) | — | [`toolchain-tabular.md`](references/toolchain-tabular.md) |
-| Database | `sqlalchemy` + `pandas.read_sql` | `duckdb` for ad-hoc | [`toolchain-tabular.md`](references/toolchain-tabular.md) |
-| Web scrape (recurring) | `requests` + `BeautifulSoup` + idempotent cache | Wayback Machine archive | [`toolchain-scraping.md`](references/toolchain-scraping.md) |
+| Input | Default → fallback | Reference |
+|---|---|---|
+| Born-digital PDF (text) / ruled grid | `pdfplumber` / `camelot` (lattice) | [`extract-pdf.md`](references/extract-pdf.md) |
+| Scanned / image-only PDF, photos, image files, maps | `tesseract` → PaddleOCR / Surya / docling VLM | [`extract-images.md`](references/extract-images.md) |
+| XLSX (clean / panel-format), CSV, Parquet, database | `read_excel` / `openpyxl` / `read_csv` (explicit dtypes) / `read_parquet` / `sqlalchemy` + `duckdb` | [`extract-tabular.md`](references/extract-tabular.md) |
+| HTML (table / layout), XML, JSON | `read_html` / `selectolax` / `lxml` + XPath / `json_normalize` | [`extract-documents.md`](references/extract-documents.md) |
+| Web scrape (dynamic / recurring) | `requests` + cache / `playwright`; Wayback fallback | [`extract-web.md`](references/extract-web.md) |
+| Multi-format corpus, end-to-end | `docling` / `kreuzberg` | [`extract-documents.md`](references/extract-documents.md#modern-unified-extractors--when-one-tool-is-enough) |
 
-For *publishing* the liberated dataset — turning the processed CSV into a queryable web interface with a JSON API — see [`toolchain-datasette.md`](references/toolchain-datasette.md) (Datasette + sqlite-utils).
+At **L1+**, capture a per-extract manifest entry (input SHA256, page range or URL, tool + version, timestamp, row count) appended to `data/processed/provenance.csv` — the sidecar, joined by `(source, vintage)`, not carried on every row. See [`data-modeling.md`](references/data-modeling.md#provenance).
 
-Always: capture a per-extract manifest entry (input file SHA256, page range or URL, tool + version, timestamp, row count) appended to `data/processed/provenance.csv`. This is the sidecar — joined onto the data by `(source, vintage)` rather than carried on every row. See [`data-modeling.md`](references/data-modeling.md#provenance).
+At **L2+**, within each per-vintage parser run the cleaning pipeline in order: **profile → structural fixes → deduplication → missing-value treatment → outlier detection → normalization → validation + reject port → PII redaction → log**. Each step has concrete tooling. See [`pipeline.md`](references/pipeline.md#the-cleaning-pipeline). Malformed rows go to a reject port (`data/audit/rejected.csv`) — errors are durable, not fatal.
 
-Within each per-vintage parser, run the cleaning pipeline in order: **profile → structural fixes → deduplication → missing-value treatment → outlier detection → normalization → validation + reject port → PII redaction → log**. Each step has concrete tooling (pandas for profiling and structural; `rapidfuzz` / `jellyfish` / `recordlinkage` for fuzzy deduplication and record matching; Rubin's MCAR/MAR/MNAR for missingness; IQR + an impossible-value range table for outliers; `presidio` / `scrubadub` for PII). See [`cleaning-and-standardization.md`](references/cleaning-and-standardization.md). Malformed rows go to a reject port (`data/audit/rejected.csv`) — errors are durable, not fatal.
+### 4. Tidy — reshape and document (L1+ docs, L3 harmonization)
 
-### 4. Tidy — reshape and document
+Default to **Wickham-tidy long format**: one row per observation, one column per variable, one cell per value. The rationale, and the few wide-as-primary exceptions (e.g. Cast-Vote-Records), are in [`data-modeling.md`](references/data-modeling.md#wickham-tidy-as-the-storage-shape).
 
-Default to **Wickham-tidy long format**: one row per observation, one column per variable, one cell per value. This is the canonical storage shape across BoulderPublicData/Election-Results, the IPEDS pipeline, and PUDL.
+At **L1+**, generate `docs/data-dictionary.md` by hand (one row per column with type, units, source vocabulary, caveats) and ship `docs/filter-pivot-recipes.md` with side-by-side **pandas / tidyverse / DuckDB** recipes so readers recover wide views. See [`data-modeling.md`](references/data-modeling.md#filter-pivot-recipes).
 
-Some domains have a more natural wide-by-key shape (e.g., one row per ballot in Cast-Vote-Records, where the ballot itself is the observation and each contest is a variable). In those cases, keep wide as the primary storage — but still emit a tidy long-form derivative for cross-source analysis if the project is multi-source.
+At **L3**, for multi-source projects maintain a **concept catalog** — a harmonization crosswalk mapping source-specific codes (IPEDS `EFTOTLT`, CDHE `TOTAL_HEADCOUNT`) to source-neutral concepts (`enrollment.headcount_fall_total`), where concepts carry not just labels but **caveats** explaining what is and isn't comparable. See [`data-modeling.md`](references/data-modeling.md#concept-catalogs).
 
-Always include in `docs/filter-pivot-recipes.md`, side by side, for each recipe:
-- **Python / pandas** — `df[df['variable'] == ...].pivot_table(index=..., columns=..., values=...)`
-- **R / tidyverse** — `df |> filter(variable == ...) |> pivot_wider(names_from=..., values_from=...)`
-- **SQL / DuckDB** — `PIVOT (FROM read_csv('...csv') WHERE variable = ...) ON ... USING ...`
+At **L2+**, validate the output with **pandera** schemas at the pipeline boundary plus **pytest** on parser behavior. See [`data-modeling.md`](references/data-modeling.md#validation).
 
-DuckDB earns the third slot because it queries the CSV directly with no load step, runs SQL the consumer can paste straight into Datasette's SQL editor or BigQuery / Postgres / Snowflake, and handles tens-of-millions-of-rows tables without flinching. (For audiences where pivot tables in Excel or Google Sheets are the dominant consumption pattern, add that as a fourth.)
-
-Generate `docs/data-dictionary.md` by hand (one row per column with type, units, source vocabulary, breakdown caveats). For multi-source projects, also maintain a **concept catalog** — a harmonization crosswalk that maps source-specific variable codes (e.g., IPEDS `EFTOTLT`, CDHE `TOTAL_HEADCOUNT`) to source-neutral concept names (e.g., `enrollment.headcount_fall_total`). The IPEDS pipeline's `concepts.py` (in its `pipeline/` package) is the canonical model; this skill's template puts the same module at `scripts/concepts.py`. Concepts carry not just labels but **caveats** explaining what is and isn't comparable across sources. See [`data-modeling.md`](references/data-modeling.md#concept-catalogs).
-
-The data dictionary, the per-extract `provenance.csv`, and the quality dimensions are, respectively, informal **DCAT**, **PROV-O**, and **DQV** records — naming the standard they match (optionally) earns interoperability cheaply; see [`open-data-standards.md`](references/open-data-standards.md#crosswalk-standards--what-the-skill-already-builds). This is background, not a documentation requirement.
-
-Validate the output with **pandera** schemas at the boundary of the pipeline plus **pytest** tests on parser behavior. Pandera schemas double as documentation. See [`data-modeling.md`](references/data-modeling.md#validation).
-
-### 5. Audit — verify against the truth
+### 5. Audit — verify against the truth (L2+)
 
 Once the pipeline runs end-to-end:
 
-- **Automatic audit (`scripts/audit.py`)** — per-source row counts, dtype conformance, NA rates, unique-key constraints, year coverage. Writes a Markdown report to `data/audit/summary.md`. Always include.
-- **Reconciliation report (`scripts/reconcile.py`, optional)** — re-opens each original file independently, sums top-line totals (e.g., total votes per contest, total enrollment per institution), and compares to the processed CSV. Any new mismatch is a regression. Modeled on Election-Results' `reconcile.py`; see [`discovery-and-audit.md`](references/discovery-and-audit.md#reconciliation). Recommended for any project where the originals carry an authoritative top-line total (vote totals, enrollment, budget, etc.).
-- **Discovery scan (`scripts/discover.py`, optional)** — scrapes the upstream source pages and flags any newly-published files not yet in the source registry. Pair with a scheduled GitHub Action for self-refreshing pipelines. See [`discovery-and-audit.md`](references/discovery-and-audit.md#discovery).
+- **`scripts/audit.py`** — per-source row counts, dtype conformance, NA rates, unique-key constraints, year coverage → `data/audit/summary.md`. Always include. See [`pipeline.md`](references/pipeline.md#audit-what-came-in).
+- **`scripts/reconcile.py` (optional)** — re-opens each original, sums top-line totals (votes per contest, enrollment per institution), compares to the processed CSV; any new mismatch is a regression. Recommended whenever the originals carry an authoritative total. See [`pipeline.md`](references/pipeline.md#reconciliation).
+- **`scripts/discover.py` (optional)** — scrapes upstream pages for newly-published files not yet in the registry; pair with a scheduled Action for self-refreshing pipelines. See [`pipeline.md`](references/pipeline.md#discovery).
 
-### 6. Publish — make the dataset queryable
+### 6. Publish — make the dataset usable (L5)
 
-The processed CSV is the deliverable. A complete liberation project ships *four* deployment surfaces — the **queryable data interface** ([`toolchain-datasette.md`](references/toolchain-datasette.md)), the **documentation site** ([`toolchain-quarto.md`](references/toolchain-quarto.md)), the **bulk distribution layer** for large files ([`toolchain-lfs.md`](references/toolchain-lfs.md)), and the **source-document layer** for the underlying PDFs / FOIA responses with reader-facing OCR + annotations + embed iframes + permalinks ([`toolchain-documentcloud.md`](references/toolchain-documentcloud.md)). Each plays to its strengths; together they cover the CRISP-DM deployment phase the workflow targets. The four are split so an agent working in just one layer only pays the context cost for that one.
+The processed CSV is the deliverable; **L5 adds up to four deployment surfaces**, split so an agent working in one layer only pays the context cost for that one. All four are in [`publishing.md`](references/publishing.md):
 
-- **Build SQLite (`scripts/publish.py build`)** — Converts the processed CSV + `provenance.csv` into a single SQLite file via [`sqlite-utils`](https://sqlite-utils.datasette.io/): composite primary key, indexed facetable columns, optional full-text search on narrative columns, foreign key from data → provenance. Generates `data/processed/metadata.yaml` from `docs/data-dictionary.md` to keep the two in sync. See [`toolchain-datasette.md`](references/toolchain-datasette.md).
-- **Deploy Datasette (`scripts/publish.py deploy`)** — `datasette publish vercel|cloudrun|fly` ships the SQLite + metadata as a public read-only [Datasette](https://datasette.io/) instance with SQL editor, faceting, JSON API, and per-table/per-column documentation. For small datasets, [Datasette Lite](https://lite.datasette.io/) runs the same database in the browser with no server. The "Baked Data" architecture (database built fresh on every deploy, no application-layer writes) is the canonical shape for civic projects.
-- **Document with [Quarto](https://quarto.org/) on [GitHub Pages](https://quarto.org/docs/publishing/github-pages.html)** — `.qmd` files in `docs/` (Markdown with executable code blocks) become the methodology, tutorials, and long-form data dictionary site. The `gh-pages.yml` workflow uses `quarto-dev/quarto-actions/publish@v2` with `target: gh-pages` to render and deploy on every push. Datasette serves the *data interface*; Quarto serves the *prose about how to use it*.
-- **Track large files with [Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage)** — Multi-gigabyte source PDFs, ZIP archives, and large Parquet outputs sit in LFS via `.gitattributes` patterns. Per-file limits are 2–5 GB depending on GitHub plan. **Architectural constraint: LFS does not work with GitHub Pages**, so the Quarto site links out to Datasette and to GitHub Releases for full-file downloads rather than embedding LFS-tracked data directly.
-- **(Optional) Datasette Agent** — A conversational LLM interface over the published database, released as alpha in May 2026. Useful for reader discovery once the canned queries and metadata are solid; not a substitute for either.
+- **Datasette** (`scripts/publish.py build` / `deploy`) — the processed CSV + `provenance.csv` become a single SQLite via `sqlite-utils` (composite key, indexed facets, optional FTS), shipped as a public read-only [Datasette](https://datasette.io/) with SQL editor, faceting, and JSON API. `metadata.yaml` is generated from the data dictionary. The "Baked Data" architecture (DB rebuilt on every deploy) is the canonical civic shape.
+- **Quarto on GitHub Pages** — `.qmd` files in `docs/` become the methodology, tutorials, and long-form dictionary site. Datasette serves the *data interface*; Quarto serves the *prose about how to use it*.
+- **Git LFS** — multi-gigabyte source PDFs, archives, and large Parquet sit in LFS via `.gitattributes`. **Architectural constraint: LFS does not work with GitHub Pages**, so the Quarto site links out to Datasette and GitHub Releases rather than embedding LFS-tracked data.
+- **DocumentCloud** — the source-document layer: upload the underlying PDFs / FOIA responses with reader-facing OCR, annotations, page-level permalinks, and embed iframes for the Quarto site.
 
-*Optional standards pass:* the published `metadata.yaml` is already a **DCAT**-shaped catalog record; for a project that needs to federate into a `data.gov`-style catalog you can emit a `dcat-us.jsonld` alongside it, and a quick **FAIR** (Findable / Accessible / Interoperable / Reusable) or **DWBP** self-check is a useful "did we miss a license / stable identifier / provenance link?" review before announcing the dataset. Background and entirely optional — see [`open-data-standards.md`](references/open-data-standards.md). Never block shipping on it.
+At **L4**, an optional standards pass: the published `metadata.yaml` is already a **DCAT**-shaped record, a `dcat-us.jsonld` can be emitted for catalog federation, and a quick **FAIR / DWBP** self-check ("did we miss a license / stable identifier / provenance link?") is useful before announcing. Background and entirely optional — see [`context.md`](references/context.md). Never block shipping on it.
 
-The recurring-refresh pattern extends naturally: the cron-driven `discover → fetch → clean → audit` PR, when merged, triggers `publish.yml` (rebuild SQLite + deploy Datasette) and `gh-pages.yml` (re-render Quarto site). Three deploys, one upstream change.
-
-Commit. The pipeline is now reproducible *and* queryable *and* documented: anyone who clones can run `uv sync && uv run python -m scripts.pipeline` to regenerate `data/processed/` from `data/original/`; readers can browse, query, and cite the live Datasette instance; and the project's methodology, data dictionary, and tutorials live at a clean GitHub Pages URL.
+The recurring-refresh pattern extends naturally: the cron-driven `discover → fetch → clean → audit` PR, when merged, triggers `publish.yml` and `gh-pages.yml`. Anyone who clones can run `uv sync && uv run python -m scripts.pipeline` to regenerate `data/processed/` from `data/original/`.
 
 ## Bootstrap quickstart
 
-For a new project the workflow is:
+**L0 / L1 skip the scaffold** — read the source, emit the CSV (and, at L1, the data dictionary + `provenance.csv` + a Survey/README note) straight to the user's working directory, then offer to climb. The steps below are for **L2+**:
 
-1. Read the user's source (the PDF, page, or spreadsheet) and produce the Survey notes inline.
-2. Run `python scripts/scaffold.py --dest <path> --name <kebab-case> --description <…> --author <…> --owner <github-username>` — it fetches [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template) at the pinned version, copies it into `<path>`, and substitutes placeholders. Read [`references/project-template.md`](references/project-template.md) for the per-file rationale.
-3. Write the project files (README, pyproject.toml, schema.py, sources.py, an initial parser, AGENTS.md) to the user's working directory — not to this skill's `assets/`. Adapt placeholder names (`PROJECT_NAME`, `SOURCE_NAME`, etc.) to the actual project.
-4. Suggest the user run `uv sync && uv run pytest` to verify the scaffold; then `uv run python -m scripts.pipeline` to attempt a first end-to-end run on a single sample file.
-5. Iterate: each new vintage or quirk becomes a new parser file or a new test case.
+1. Produce the Survey notes inline from the user's source.
+2. Run `python scripts/scaffold.py --dest <path> --name <kebab-case> --description <…> --author <…> --owner <github-username>` — it fetches [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template) at the pinned version and substitutes placeholders. Read [`references/project-template.md`](references/project-template.md) for the per-file rationale.
+3. Write the project files (README, pyproject.toml, schema.py, sources.py, an initial parser, AGENTS.md) to the user's working directory — not to this skill's directory. Adapt placeholder names to the actual project.
+4. Suggest `uv sync && uv run pytest` to verify the scaffold; then `uv run python -m scripts.pipeline` for a first end-to-end run on a sample file.
+5. Iterate: each new vintage or quirk becomes a new parser file or test case.
 
 ## Adding a source to an existing project
 
-1. Read the project's `AGENTS.md` first — every Boulder Public Data and similar project has one and it answers the architecture questions.
+1. Read the project's `AGENTS.md` first — it answers the architecture questions.
 2. Add the `Source` subclass in `scripts/sources.py` (or a dedicated module) and register it in `scripts/config.py::SOURCES`.
 3. Add a parser module under `scripts/parsers/`.
-4. Add fixtures + a test under `tests/` — at minimum one fixture per source vintage that exercises the parser end-to-end.
-5. If the project has a concept catalog (`data/lookups/concepts.yaml` or `scripts/concepts.py`), add the new source's variable codes to the existing concepts (or add new concepts with caveats explaining what's not comparable).
-6. Run `audit.py` and `reconcile.py`. If reconciliation introduces a `mismatch`, investigate before merging.
+4. Add fixtures + a test under `tests/` — at minimum one fixture per source vintage exercising the parser end-to-end.
+5. If the project has a concept catalog, add the new source's variable codes to existing concepts (or add new concepts with caveats explaining what's not comparable).
+6. Run `audit.py` and `reconcile.py`. If reconciliation introduces a mismatch, investigate before merging.
 
 ## Adding a new vintage to an existing source
 
 1. Add the new year's URL to the source registry.
 2. Run `discover.py` — does it pick up the new file automatically?
 3. Run `fetch.py` to pull it into `data/original/`.
-4. Run `clean.py`. If it crashes, identify whether (a) the schema changed mid-period (add a vintage-specific branch in the parser) or (b) a structural quirk needs handling (merged cells, new columns).
+4. Run `clean.py`. If it crashes, identify whether (a) the schema changed mid-period (add a vintage-specific branch) or (b) a structural quirk needs handling (merged cells, new columns).
 5. Re-run audit and reconciliation. Update `docs/data-dictionary.md` with any new caveats.
 6. Commit, preferably via PR with the audit + reconciliation diffs visible.
 
 ## Reference index
 
-- [`references/movement-history.md`](references/movement-history.md) — the data liberation tradition (Sunlight, PDF Liberation, MuckRock, PUDL, BoulderPublicData) plus academic framing (CRISP-DM, table understanding, data understanding dimensions). Read once at the start.
-- [`references/open-data-standards.md`](references/open-data-standards.md) — **background, not a constraint:** the official open-data standards the skill already informally implements (Sunlight policy guidelines, DCAT-US / W3C DCAT, PROV-O, DQV, DWBP, FAIR, FAIRsharing / re3data / NIEM), each profiled by history / precedents / standards organization / institutions / infrastructure, with a crosswalk from each standard to the existing skill artifact and an optional deepening step. For naming and optionally extending what the pipeline does — never a gate.
-- [`references/open-government-landscape.md`](references/open-government-landscape.md) — **background, not a constraint:** the civic/institutional context around the data — transparency law and records requests (FOIA, sunshine laws), the US federal open-data mandates (M-13-13, OPEN Government Data Act, DATA Act), the civic-tech ecosystem, institutional portals (data.gov / CKAN / Socrata), and the international frame (OGP, Open Data Charter, OKFN). Synthesizes the five open-government themes, carries a catalogue of referenced resources, and maps the gaps between the skill's small-team/US/self-hosted defaults and the institutional/global picture to where each is addressed.
-- [`references/toolchain-pdf.md`](references/toolchain-pdf.md) — pdfplumber, camelot, tesseract; decision tree, common gotchas, fallback chains.
-- [`references/toolchain-tabular.md`](references/toolchain-tabular.md) — XLSX (including panel-format), CSV, Parquet, databases.
-- [`references/toolchain-documents.md`](references/toolchain-documents.md) — HTML, XML, JSON → tidy; `pandas.json_normalize` patterns.
-- [`references/toolchain-scraping.md`](references/toolchain-scraping.md) — post-API web scraping per the CU Info Science *Web Data Science Book*: ethics, archives, protocols, dynamic pages, government data.
-- [`references/toolchain-datasette.md`](references/toolchain-datasette.md) — the queryable data interface: sqlite-utils, metadata, canned queries, plugins, the "Baked Data" pattern, deploy targets, Datasette Agent.
-- [`references/toolchain-quarto.md`](references/toolchain-quarto.md) — the documentation site: `_quarto.yml`, `docs/*.qmd`, `quarto publish gh-pages`, the freeze cache, GitHub Actions.
-- [`references/toolchain-lfs.md`](references/toolchain-lfs.md) — bulk distribution via Git LFS: per-plan size limits, the architectural caveat that LFS does not work with GitHub Pages, CI bandwidth posture.
-- [`references/toolchain-documentcloud.md`](references/toolchain-documentcloud.md) — the source-document publishing surface: upload + project organization via `python-documentcloud`; reader-facing OCR + annotations + page-level permalinks; embed iframes for the Quarto site; access levels (public / organization / private) and the chain-of-custody from processed-CSV-row → provenance.csv → DocumentCloud document URL.
-- [`references/project-template.md`](references/project-template.md) — full skeleton spec; what each file does and why.
-- [`references/data-modeling.md`](references/data-modeling.md) — Wickham-tidy, data dictionaries, concept catalogs / crosswalks, provenance, pandera validation, filter-pivot recipes, the five-dimension quality framework.
-- [`references/cleaning-and-standardization.md`](references/cleaning-and-standardization.md) — the 9-step parser-time cleaning pipeline: profile, structural fixes, exact + fuzzy deduplication (Jaro-Winkler / Levenshtein) and record matching, Rubin's MCAR/MAR/MNAR missing-data classification, statistical + domain-range outlier detection, normalization and standardization, validation + reject port, PII redaction (presidio/scrubadub).
-- [`references/discovery-and-audit.md`](references/discovery-and-audit.md) — `discover.py` (find new sources upstream), `audit.py` (profile + measure), `reconcile.py` (verify against originals), and the pre-extraction bulletproofing checklist.
+Ten references, grouped by the level each primarily serves and loaded on demand. The five `extract-*` files are the L0 toolchain (open only the input you have); the rest serve L1–L5.
+
+- **L0 — the extraction toolchain, split by input type** (open only the one you have; the routing table is in the [Extract phase](#3-extract--pull-text-and-tables-out-l0) above):
+  - [`references/extract-pdf.md`](references/extract-pdf.md) — born-digital PDFs: pdfplumber, camelot, the working parser skeleton.
+  - [`references/extract-tabular.md`](references/extract-tabular.md) — XLSX (incl. panel-format), CSV, Parquet, databases; dtype hygiene.
+  - [`references/extract-documents.md`](references/extract-documents.md) — HTML, XML, JSON, DOCX; the unified extractors (docling / kreuzberg).
+  - [`references/extract-web.md`](references/extract-web.md) — web scraping: ethics, archives, protocols, dynamic pages.
+  - [`references/extract-images.md`](references/extract-images.md) — images, OCR (tesseract / PaddleOCR / Surya), preprocessing, and computer-vision layout analysis.
+- [`references/data-modeling.md`](references/data-modeling.md) — **L1–L3.** What to produce: Wickham-tidy shape, schema-as-contract, the data dictionary, concept catalogs / crosswalks, provenance, pandera validation, filter-pivot recipes, and the five-dimension quality framework (the canonical definition).
+- [`references/pipeline.md`](references/pipeline.md) — **L2.** How to process and verify: the 9-step parser-time cleaning pipeline (the canonical definition), plus discovery, audit, reconciliation, pre-extraction bulletproofing, and the recurring-refresh PR pattern.
+- [`references/project-template.md`](references/project-template.md) — **L2 / L4.** The full project skeleton spec — what each file does and why — plus the governance section (the L4 anchor).
+- [`references/publishing.md`](references/publishing.md) — **L5.** The four deployment surfaces: Datasette (queryable interface), Quarto (docs site), Git LFS (bulk distribution), DocumentCloud (source documents).
+- [`references/context.md`](references/context.md) — **L4 background, not a gate.** The civic-data movement and its critical perspectives, the open-data standards the artifacts already informally implement (DCAT / PROV / DQV / FAIR / DWBP + registries), and the open-government landscape (FOIA, federal mandates, civic tech, portals, the international frame). The only real gates here are privacy law and the CARE principles.
 
 ## The template repo
 
-The working template lives at [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), pinned to a tagged release that pairs with this skill (`v0.1.0` of one matches `v0.1.0` of the other). `scripts/scaffold.py` fetches it on demand; you should not normally need to read it. What it contains, briefly:
-
-- `pyproject.toml` — uv-managed; Python 3.11+; core deps pandas, pandera, pyarrow, requests, requests-cache, tenacity, structlog, tabulate; optional extras for `pdf`, `ocr`, `scrape`, `tabular`, `publish`.
-- `scripts/{schema,sources,config,fetch,discover,clean,audit,reconcile,publish,pipeline}.py` — one-responsibility modules connected by `scripts/pipeline.py`'s argparse CLI (`discover | fetch | clean | audit | reconcile | publish | run`).
-- `scripts/concepts.py` — optional cross-source harmonization (single-source projects leave it unused).
-- `_quarto.yml` + `docs/*.qmd` — Quarto site seed.
-- `.gitattributes` — Git LFS rules for source PDFs / large Parquet / SQLite.
-- `AGENTS.md`, `README.md`, `docs/data-dictionary.md`, `docs/filter-pivot-recipes.md` — placeholder-filled documentation the scaffolder personalizes.
-- `tests/test_schema.py` + `tests/conftest.py` — baseline schema-drift tests.
-- `.github/workflows/tests.yml` — on by default. `refresh.yml.disabled`, `publish.yml.disabled`, `gh-pages.yml.disabled` — opt-in.
-
-For why each piece is shaped this way, read [`references/project-template.md`](references/project-template.md). To inspect a rendered project, run `scripts/scaffold.py --dry-run` or scaffold into a temp dir.
+The working template lives at [`brianckeegan/data-liberation-template`](https://github.com/brianckeegan/data-liberation-template), pinned to a tagged release that pairs with this skill (`v0.1.0` of one matches `v0.1.0` of the other). `scripts/scaffold.py` fetches it on demand; you should not normally need to read it. It contains the `pyproject.toml` (uv-managed, Python 3.11+), the one-responsibility `scripts/*.py` modules connected by `pipeline.py`'s argparse CLI, the optional `scripts/concepts.py`, the `_quarto.yml` + `docs/*.qmd` seed, `.gitattributes` LFS rules, placeholder-filled `AGENTS.md` / `README.md` / dictionaries, baseline schema-drift tests, and `.github/workflows/` (tests on by default; refresh / publish / gh-pages opt-in). To inspect a rendered project, run `scripts/scaffold.py --dry-run` or scaffold into a temp dir. For why each piece is shaped this way, read [`references/project-template.md`](references/project-template.md).
 
 ## Conventions worth defending
 
 A few that are easy to get wrong:
 
-- **Immutable originals.** Files in `data/original/` are never edited in place after the first commit. Any cleaning lives in `scripts/parsers/` and produces `data/processed/`. The hash manifest in `data/original/manifest.json` enforces this. This is what makes the pipeline reproducible.
-- **Per-extract provenance, not per-row.** Carrying source URL on every row is wasteful and noisy. Sidecar `provenance.csv` keyed on `(source, vintage)` and joined when needed. (Per-cell provenance is a different beast — opt-in for audit-grade work.)
-- **Concepts carry caveats.** A concept catalog that just renames variables across sources is a foot-gun. Every concept entry should document what is and is not comparable — see the IPEDS pipeline's `concepts.py` for examples like "IPEDS Non-Resident Alien ≠ CDHE Non-Resident."
-- **Tidy long is the storage shape, wide is the analysis shape.** Don't be shy about the long form being awkward to eyeball — the filter-pivot recipes in `docs/` are how readers recover human-readable wide views. The trade is worth it for cross-source analysis.
-- **AGENTS.md before code.** A new contributor (or future Claude) should be able to read AGENTS.md and know enough to add a source without re-reading the codebase. If the file is missing or stale, the architecture is undocumented; fix it.
+- **Immutable originals.** Files in `data/original/` are never edited in place after the first commit. Cleaning lives in `scripts/parsers/` and produces `data/processed/`. The hash manifest in `data/original/manifest.json` enforces it. This is what makes the pipeline reproducible.
+- **Per-extract provenance, not per-row.** Sidecar `provenance.csv` keyed on `(source, vintage)`, joined when needed. (Per-cell provenance is a different beast — opt-in for audit-grade work.)
+- **Concepts carry caveats.** A catalog that just renames variables across sources is a foot-gun. Every concept entry documents what is and is not comparable.
+- **Tidy long is the storage shape, wide is the analysis shape.** The filter-pivot recipes in `docs/` are how readers recover human-readable wide views. The trade is worth it for cross-source analysis.
+- **AGENTS.md before code.** A new contributor (or future Claude) should read AGENTS.md and know enough to add a source without re-reading the codebase. If it's missing or stale, the architecture is undocumented; fix it.

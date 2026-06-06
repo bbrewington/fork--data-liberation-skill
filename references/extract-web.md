@@ -1,8 +1,8 @@
-# Toolchain: Web Scraping
+# Extract: web scraping
 
-This reference is for the case where the data is on a website rather than in a file you can download. Government dashboards, court records, agency results pages, real-time logs, FOIA case trackers — these are common civic data sources, and many of them publish only as HTML.
+This part is for when the data is on a website rather than in a downloadable file. Government dashboards, court records, agency results pages, real-time logs, FOIA case trackers — common civic data sources, many publishing only as HTML.
 
-The structure follows the CU Information Science [INFO4871 *Web Data Science* course](https://github.com/cuinfoscience/INFO4871-Fall2024) and its weekly progression: ethics first, then archives (often the fastest path is the one that doesn't involve a live request at all), then protocols (HTTP discipline), then dynamic pages, then government data specifically.
+The structure follows the CU Information Science [INFO4871 *Web Data Science* course](https://github.com/cuinfoscience/INFO4871-Fall2024): ethics first, then archives (often the fastest path involves no live request at all), then protocols (HTTP discipline), then dynamic pages, then government data specifically.
 
 ## Scraping in the post-API age
 
@@ -252,7 +252,7 @@ These interfaces are fragile and tedious; if a records request would yield the s
 
 ## Discovery as scraping's calmer cousin
 
-`scripts/discover.py` (see `references/discovery-and-audit.md`) is fundamentally a scraping operation, but a very small one — just enough HTTP to ask "what's available?" without downloading anything. Treat it with the same discipline: identifiable User-Agent, polite delay, cached fetch, retries. The two operations share most of their infrastructure, which is why `fetch.py` and `discover.py` both end up importing from the same `_http.py` helper module in mature projects.
+`scripts/discover.py` (see `references/pipeline.md`) is fundamentally a scraping operation, but a very small one — just enough HTTP to ask "what's available?" without downloading anything. Treat it with the same discipline: identifiable User-Agent, polite delay, cached fetch, retries. The two operations share most of their infrastructure, which is why `fetch.py` and `discover.py` both end up importing from the same `_http.py` helper module in mature projects.
 
 ## Common failure modes
 
@@ -266,6 +266,8 @@ These interfaces are fragile and tedious; if a records request would yield the s
 | Scraped table looks right but every numeric cell is the same value | The selector matches a sibling element instead of the row's value | Inspect with DevTools; tighten the selector |
 | Long scrape blocked midway by Cloudflare | The publisher uses Cloudflare bot protection | Slow the request rate further; consider whether a records request is preferable |
 | Site changed and parser fails silently | UI redesign | Commit the saved HTML as a fixture; the parser test catches the next breakage |
+
+---
 
 ## What to write in the AGENTS.md
 

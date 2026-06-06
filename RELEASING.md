@@ -134,6 +134,30 @@ The workflows degrade gracefully if the token is missing: they print a warning a
 | `dispatch-to-skill.yml` | template | push to main | Fire `template-updated` event to skill repo |
 | `tests.yml` | template (shipped to scaffolded projects) | push, PR | Ruff + pytest on the **scaffolded** project. Skipped on the template repo itself (placeholders aren't rendered there). |
 
+## Planned follow-ups (template repo)
+
+The skill is organized into six complexity levels (L0–L5; see SKILL.md). L0 (Extract) and
+L1 (Documentation) deliberately **do not** scaffold a project — they emit a CSV (and, at L1, a
+data dictionary + `provenance.csv` + a Survey/README note) directly. Today `scripts/scaffold.py`
+only knows how to render the **full** template, which is the right shape for L2+. To let the
+scaffolder serve the lower rungs without overshooting, a follow-up PR (in this repo + the
+template repo, in lockstep) should add:
+
+1. **`scaffold.py --level <0-5>`.** A per-level path allowlist in the render walk:
+   - `--level 0` → no-op / prints guidance (no files written).
+   - `--level 1` → `README.md` + `docs/data-dictionary.md` + a `provenance.csv` header + a minimal
+     governance/ethics stub; no `scripts/`, no CI, no `pyproject.toml`.
+   - `--level 2` (default) → today's full scaffold.
+   - `--level 5` → additionally un-disables `publish.yml` / `gh-pages.yml`.
+2. **Template files tagged/grouped by level** so the scaffolder can subset them deterministically.
+
+**Lockstep implication:** the `--level` flag is new behavior pinned to a template SHA, so it is a
+**joint skill + template version bump** — update the "Slot-fills used by `scaffold.py`" table in
+`references/project-template.md`, and confirm a green `scaffold-e2e.yml` on both repos via the
+`repository_dispatch` pairing. (The level-restructure PR that introduced this section changes none
+of `scaffold.py`, the template, or the slot-fills table, so it shipped as a **skill-only** change
+with no template bump.)
+
 ## Yanking a release
 
 If a release ships a broken pairing, the immediate fix is to revert the skill's `scaffold.py` to the previous SHA and tag a patch release. The old tags stay (don't force-push them); the patch release supersedes them.

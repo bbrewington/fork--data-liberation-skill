@@ -1,8 +1,6 @@
-# Toolchain: Tabular Inputs (XLSX, CSV, Parquet, Databases)
+# Extract: tabular inputs (XLSX, CSV, Parquet, databases)
 
-Not all liberation work starts from a PDF. A large fraction of public datasets are already tabular when published — XLSX from government portals, CSV from open-data sites, Parquet from data brokers, dumps from SQL databases. They are *technically* structured, but in practice they are often as hostile to reuse as PDFs: panel-format spreadsheets with merged headers, CSVs with inconsistent delimiters across years, schema drift, undocumented sentinel values, encoding bombs.
-
-This reference covers how to read these inputs reliably and surface the structural problems early.
+A large fraction of public datasets are already tabular when published — XLSX from government portals, CSV from open-data sites, Parquet from data brokers, dumps from SQL databases. They are *technically* structured but often as hostile to reuse as PDFs: panel-format spreadsheets with merged headers, CSVs with inconsistent delimiters across years, schema drift, undocumented sentinel values, encoding bombs. This part covers reading these inputs reliably and surfacing structural problems early.
 
 ## Reading XLSX
 
@@ -14,7 +12,7 @@ import pandas as pd
 df = pd.read_excel("data/original/agency/2024.xlsx", sheet_name="Data", header=0)
 ```
 
-The 20% that doesn't is where civic data liberation actually lives. Here is the diagnostic order to follow when a spreadsheet does not yield cleanly.
+The 20% that doesn't is where civic data liberation lives. The diagnostic order when a spreadsheet doesn't yield cleanly:
 
 ### Inspect first, parse second
 
@@ -123,7 +121,7 @@ The general principle: **for any format that separates source-of-truth-expressio
 
 The same principle applies past XLSX — materialized database views with stale incremental updates, cached query results in BI tools, derived columns in CMS-backed datasets. Any time the file format distinguishes formula from result, the recompute step is part of the parser, not the consumer.
 
-When the formulas themselves are *broken* in the source — visible as `#REF!`, `#DIV/0!`, `#VALUE!`, `#N/A`, `#NAME?` cells — the source has a data-quality problem worth surfacing rather than papering over. See [`discovery-and-audit.md#pre-extraction-bulletproofing`](discovery-and-audit.md#pre-extraction-bulletproofing) for the "format-native errors are quality signals" check that belongs in the bulletproofing pass.
+When the formulas themselves are *broken* in the source — visible as `#REF!`, `#DIV/0!`, `#VALUE!`, `#N/A`, `#NAME?` cells — the source has a data-quality problem worth surfacing rather than papering over. See [`pipeline.md#pre-extraction-bulletproofing`](pipeline.md#pre-extraction-bulletproofing) for the "format-native errors are quality signals" check that belongs in the bulletproofing pass.
 
 ## Reading CSV
 
@@ -304,6 +302,8 @@ This pays off downstream: pandera schemas validate cleanly, parquet write preser
 | Numeric column has trailing whitespace | Source has " 123" with leading space | `pd.to_numeric(s.str.strip(), errors="coerce")` |
 | Same data, different schemas across years | Mid-period schema change | Vintage-specific parser, harmonize via concept catalog |
 | Sentinel value `999` treated as a real number | Domain-specific NA token | Pass `na_values=[999, "999"]` to `read_csv` |
+
+---
 
 ## What to write in the AGENTS.md
 

@@ -82,7 +82,7 @@ The skeleton supports four independent deployment surfaces, each playing to its 
 | **Bulk data distribution** | LFS-tracked `data/original/`, `*.parquet` | GitHub LFS + Releases | Manual or `release.yml` |
 | **Source documents** | PDFs / FOIA responses / scans under `data/original/<source>/` | DocumentCloud projects with reader UI + OCR + embed iframes | `python-documentcloud` upload step in `refresh.yml`, or a DocumentCloud scraper add-on |
 
-Four references cover the four surfaces independently: [`toolchain-datasette.md`](toolchain-datasette.md), [`toolchain-quarto.md`](toolchain-quarto.md), [`toolchain-lfs.md`](toolchain-lfs.md), [`toolchain-documentcloud.md`](toolchain-documentcloud.md). The architectural constraint that Git LFS does not work with GitHub Pages — which is why publishing is split across surfaces rather than one workflow — is documented in the LFS reference. DocumentCloud closes the gap LFS leaves: where LFS hands readers an opaque file, DocumentCloud gives them a page-anchored permalink with searchable OCR text.
+Four references cover the four surfaces independently: [`publishing.md`](publishing.md), [`publishing.md`](publishing.md), [`publishing.md`](publishing.md), [`publishing.md`](publishing.md). The architectural constraint that Git LFS does not work with GitHub Pages — which is why publishing is split across surfaces rather than one workflow — is documented in the LFS reference. DocumentCloud closes the gap LFS leaves: where LFS hands readers an opaque file, DocumentCloud gives them a page-anchored permalink with searchable OCR text.
 
 ## Top-level files
 
@@ -112,7 +112,7 @@ Distinct from AGENTS.md. The README is for *data consumers* — journalists open
 Required sections:
 
 1. **One-paragraph description.** What the dataset contains, in plain language. Include 5 sample rows rendered as a Markdown table.
-2. **Movement context.** One paragraph naming the lineage: which tradition the project follows (Sunlight, PUDL, BoulderPublicData) and why the data was worth liberating. The `references/movement-history.md` reference in this skill exists so this section can be short and well-cited.
+2. **Movement context.** One paragraph naming the lineage: which tradition the project follows (Sunlight, PUDL, BoulderPublicData) and why the data was worth liberating. The `references/context.md` reference in this skill exists so this section can be short and well-cited.
 3. **How to load.** Code snippets for the dominant consumer (`pandas`, `polars`, `R`/`readr`, depending on the project audience).
 4. **Schema overview.** A short table: column name, type, one-line description. The exhaustive version lives in `docs/data-dictionary.md`.
 5. **Provenance and refresh.** When the data was last updated, where it came from, what cadence the publisher follows, and what `scripts/discover.py` checks for.
@@ -129,11 +129,11 @@ Standard Python plus: `.requests-cache.sqlite`, `.env`, `docs/variables.{md,csv}
 
 ### `.gitattributes`
 
-Git LFS rules. Default patterns: `data/original/**/*.{pdf,zip,xlsx,xls,tar.gz,dbf}`, `data/processed/*.{parquet,db}`, `docs/_freeze/**/*.{png,pdf}`. Contributors must `git lfs install` once per machine; CI jobs needing raw data set `actions/checkout@v4` with `lfs: true`. The LFS-vs-Pages constraint, per-plan size limits, and CI bandwidth posture are in [`toolchain-lfs.md`](toolchain-lfs.md).
+Git LFS rules. Default patterns: `data/original/**/*.{pdf,zip,xlsx,xls,tar.gz,dbf}`, `data/processed/*.{parquet,db}`, `docs/_freeze/**/*.{png,pdf}`. Contributors must `git lfs install` once per machine; CI jobs needing raw data set `actions/checkout@v4` with `lfs: true`. The LFS-vs-Pages constraint, per-plan size limits, and CI bandwidth posture are in [`publishing.md`](publishing.md).
 
 ### `_quarto.yml`
 
-Declares a Quarto website project with `_site/` output, a navbar linking docs/index.qmd + data-dictionary + filter-pivot-recipes + methodology + changelog, and `execute: freeze: auto`. Full configuration in the [template repo](https://github.com/brianckeegan/data-liberation-template/blob/main/_quarto.yml); the toolchain-side rationale (the freeze pattern, the GH Action workflow, the one-time `quarto publish gh-pages` setup) is in [`toolchain-quarto.md`](toolchain-quarto.md).
+Declares a Quarto website project with `_site/` output, a navbar linking docs/index.qmd + data-dictionary + filter-pivot-recipes + methodology + changelog, and `execute: freeze: auto`. Full configuration in the [template repo](https://github.com/brianckeegan/data-liberation-template/blob/main/_quarto.yml); the toolchain-side rationale (the freeze pattern, the GH Action workflow, the one-time `quarto publish gh-pages` setup) is in [`publishing.md`](publishing.md).
 
 ## `scripts/` modules
 
@@ -203,7 +203,7 @@ The CLI exposes `--force` to redownload (for cases where the upstream URL is sta
 
 ### `discover.py` — find new sources upstream (optional)
 
-For pipelines with a recurring cadence, `discover.py` walks each `Source.discover()` and prints any artifacts present upstream but not in the registry. Output goes to stdout and (timestamped) to `data/audit/discovery-<ts>.txt`. Paired with a GitHub Actions cron, this becomes the self-refresh mechanism. See `references/discovery-and-audit.md`.
+For pipelines with a recurring cadence, `discover.py` walks each `Source.discover()` and prints any artifacts present upstream but not in the registry. Output goes to stdout and (timestamped) to `data/audit/discovery-<ts>.txt`. Paired with a GitHub Actions cron, this becomes the self-refresh mechanism. See `references/pipeline.md`.
 
 ### `clean.py` — orchestrator
 
@@ -224,7 +224,7 @@ Reads `data/processed/<project>.csv` and writes:
 
 For high-stakes pipelines (anything that will be cited publicly, anything contested), `reconcile.py` re-opens each original file and computes top-line totals (sum of votes per contest, total enrollment per institution) independently, then compares to the processed CSV. Mismatches are regressions: the pipeline run completes, but CI fails on the reconcile job and the audit flags it.
 
-Default: off, but always-scaffolded. See `references/discovery-and-audit.md` for the registry pattern and the BoulderPublicData/Election-Results 149/150 example.
+Default: off, but always-scaffolded. See `references/pipeline.md` for the registry pattern and the BoulderPublicData/Election-Results 149/150 example.
 
 ### `publish.py` — build SQLite + metadata for Datasette
 
@@ -236,7 +236,7 @@ uv run python -m scripts.publish serve       # build and serve Datasette locally
 uv run python -m scripts.publish deploy      # build and `datasette publish vercel`
 ```
 
-Reproducible: same input CSV produces an identical `.db` file. See `references/toolchain-datasette.md` for the full Datasette toolchain and the publishing options spectrum.
+Reproducible: same input CSV produces an identical `.db` file. See `references/publishing.md` for the full Datasette toolchain and the publishing options spectrum.
 
 ### `pipeline.py` — end-to-end driver
 
@@ -346,25 +346,25 @@ Column-by-column profile inferred from the data itself. Do not hand-edit. The me
 
 ### `refresh.yml` (opt-in)
 
-Scheduled `discover → fetch → clean --fail-on-empty → audit`, then PR-on-new-data. The template ships this as `refresh.yml.disabled`; rename to enable. See `references/discovery-and-audit.md` for the recurring-refresh pattern, the cron-cadence guidance per source type, and why PR-not-commit-to-main is the right discipline.
+Scheduled `discover → fetch → clean --fail-on-empty → audit`, then PR-on-new-data. The template ships this as `refresh.yml.disabled`; rename to enable. See `references/pipeline.md` for the recurring-refresh pattern, the cron-cadence guidance per source type, and why PR-not-commit-to-main is the right discipline.
 
 ### `publish.yml` (opt-in)
 
 Triggered when the refresh PR merges (i.e., on push to `main` that touches `data/processed/**`). Rebuilds `data/processed/<project>.db` from the canonical CSV via `scripts/publish.py build`, then runs `datasette publish vercel|fly|cloudrun` to deploy the updated database. Requires the deploy provider's auth token in repository secrets (`VERCEL_TOKEN`, `FLY_API_TOKEN`, or GCP credentials).
 
-Template ships as `publish.yml.disabled`; rename and configure the provider once the first manual `datasette publish` succeeds locally. See `references/toolchain-datasette.md`.
+Template ships as `publish.yml.disabled`; rename and configure the provider once the first manual `datasette publish` succeeds locally. See `references/publishing.md`.
 
 ### `gh-pages.yml` (opt-in)
 
 Renders the Quarto documentation site to GitHub Pages on every push to `main` that touches `docs/`, `_quarto.yml`, or `data/processed/**`. Uses `quarto-dev/quarto-actions/setup@v2` + `publish@v2` with `target: gh-pages`. Requires `permissions: contents: write` to push to the `gh-pages` branch; the branch must be created first by running `quarto publish gh-pages` locally once.
 
-Template ships as `gh-pages.yml.disabled`. Enable once the project has a Quarto site authored under `docs/` and the one-time local setup is done. See `references/toolchain-quarto.md` for the workflow itself and `references/toolchain-lfs.md` for the LFS architectural caveat.
+Template ships as `gh-pages.yml.disabled`. Enable once the project has a Quarto site authored under `docs/` and the one-time local setup is done. See `references/publishing.md` for the workflow itself and `references/publishing.md` for the LFS architectural caveat.
 
 ## Governance
 
 Civic-data projects publish information about *people, institutions, and systems whose interests aren't always aligned with publication*. The skill scatters governance-relevant content across the data dictionary (caveats), provenance.csv (legal basis), the cleaning pipeline (PII redaction at step 8), and AGENTS.md (design decisions); this section names the *up-front* decisions every project should make explicitly. Treat this as a checklist run during the Survey phase, not a phase of its own — but the answers belong in AGENTS.md and the README, not in someone's head.
 
-The licensing, permanence, and non-discrimination decisions below track the **Sunlight Open Data Policy Guidelines** (10 principles) — the publisher-side policy frame whose gaps are *why* liberation work exists. Naming the principle a decision honors is optional background, not a compliance step; see [`open-data-standards.md`](open-data-standards.md#a-meta-synthesis-four-lenses-on-open-data).
+The licensing, permanence, and non-discrimination decisions below track the **Sunlight Open Data Policy Guidelines** (10 principles) — the publisher-side policy frame whose gaps are *why* liberation work exists. Naming the principle a decision honors is optional background, not a compliance step; see [`context.md`](context.md#a-meta-synthesis-four-lenses-on-open-data).
 
 ### License inheritance
 
@@ -389,7 +389,7 @@ Some sources contain information *about people who didn't consent to be in the d
 2. **CARE-vs-FAIR check.** FAIR pushes toward maximal discoverability; the **CARE Principles** (Collective benefit, Authority to control, Responsibility, Ethics — <https://www.gida-global.org/care>) can pull the other way for data about Indigenous or other historically-surveilled communities, toward *restricted access under community authority*. When they conflict, CARE governs the access decision and FAIR governs the *form* of whatever is released. If the affected community wouldn't endorse the liberation, that's a stop, not a footnote.
 3. **Out-of-scope-use declaration.** Whatever ships, name the uses the project disavows.
 
-The wider policy and rights landscape (FOIA, the federal mandates, GDPR/CCPA, CARE, the international frame) is catalogued in [`open-government-landscape.md`](open-government-landscape.md).
+The wider policy and rights landscape (FOIA, the federal mandates, GDPR/CCPA, CARE, the international frame) is catalogued in [`context.md`](context.md).
 
 ### Project-internal governance
 
@@ -398,7 +398,7 @@ Once the project is live, it acquires its own governance surface: who can change
 - **Schema-revision discipline.** Changes to `LONG_COLUMNS` or the pandera class are *contract changes* (see the schema-as-contract framing in [`data-modeling.md`](data-modeling.md#the-canonical-schema)). Require an entry in `docs/changelog.qmd` for every schema-revision PR; require a paragraph naming what breaks for downstream consumers.
 - **Concept-catalog amendments.** Adding a new cross-source equivalence is a contract change at the equivalence level. Require the caveats list to be non-empty and to name what is and isn't comparable (see [`data-modeling.md`](data-modeling.md#concept-catalogs)).
 - **Refresh-PR review norms.** Document who reviews refresh PRs and what they look at: row-count delta in `data/audit/summary-*.md`, new entries in `extraction_errors.json`, new "Empty sources" flags, reconcile mismatches. The current `refresh.yml.disabled` template includes a PR-body checklist; AGENTS.md should name who runs it.
-- **Conflict-resolution path.** When contributors from different functional teams disagree about a schema choice or a concept caveat — and they will, see Casemajor's "data culture as contested field" in [`movement-history.md`](movement-history.md#critical-perspectives-worth-absorbing) — AGENTS.md should name the documented escalation path. A "minority report" field in the dictionary, or a `disputes/` log directory, beats litigating in PR comments.
+- **Conflict-resolution path.** When contributors from different functional teams disagree about a schema choice or a concept caveat — and they will, see Casemajor's "data culture as contested field" in [`context.md`](context.md#critical-perspectives-worth-absorbing) — AGENTS.md should name the documented escalation path. A "minority report" field in the dictionary, or a `disputes/` log directory, beats litigating in PR comments.
 
 ### Downstream accountability
 
@@ -453,7 +453,7 @@ The template uses these placeholders sparingly — most of the template is real,
 
 A short list of cross-cutting principles the skill enacts everywhere. The vocabulary is borrowed from [GROBID's design principles](https://grobid.readthedocs.io/en/latest/Principles/) — GROBID has been doing scientific-document extraction since ~2008, and its lessons generalize past its specific domain. Each principle names a stance the skill already takes across multiple files; reading them together explains *why* the skill looks the way it does.
 
-- **Cascade of specialized stages, not a monolithic extractor.** GROBID decomposes extraction into a series of small sequence-labeling models, each tuned for one document region. This skill's analog: **per-source × per-vintage parsers**, plus the 9-step cleaning pipeline in [`cleaning-and-standardization.md`](cleaning-and-standardization.md), plus the source-extraction / transformation / sink-publication role decomposition. Resist the urge to write one parser that handles everything; resist the urge to roll all cleaning into one function. Diagnosis-by-stage is what cascading buys you.
+- **Cascade of specialized stages, not a monolithic extractor.** GROBID decomposes extraction into a series of small sequence-labeling models, each tuned for one document region. This skill's analog: **per-source × per-vintage parsers**, plus the 9-step cleaning pipeline in [`pipeline.md`](pipeline.md), plus the source-extraction / transformation / sink-publication role decomposition. Resist the urge to write one parser that handles everything; resist the urge to roll all cleaning into one function. Diagnosis-by-stage is what cascading buys you.
 
 - **Work with layout tokens, not raw text.** GROBID's models operate on tokens that carry position, font, and bounding-box information, not just Unicode. This skill's analog: **pdfplumber's character-level coordinates, camelot's ruled-grid detection, docling's layout-aware DoclingDocument, the `--psm` and bounding-box configuration in the OCR section, the `selectolax` selectors that bind to *structural* classes**. Where the source has visual structure that bears meaning, the parser keeps it. Throwing away layout to recover plain text first and reconstruct second is the failure mode.
 
@@ -461,7 +461,7 @@ A short list of cross-cutting principles the skill enacts everywhere. The vocabu
 
 - **Evaluation under realistic distribution, not training distribution.** GROBID holds out evaluation sets that follow the *actual* document distribution, because training distribution undersamples common cases. This skill's analog: **`reconcile.py` re-opens the *original* artifact and computes top-line totals from it** — independent of the parser's path through the data. The recurring-refresh PR's audit diff is the same idea: each refresh is evaluated against the source's current state, not the schema the parser was written against.
 
-- **Default fast, opt into precision.** GROBID defaults to CRF for speed and offers deep-learning models when accuracy matters more than throughput. This skill's analog: **start with rule-based pdfplumber / camelot, escalate to PaddleOCR / docTR / Surya when tesseract fails, escalate to docling when classical methods can't handle the layout, escalate to VLMs only when nothing else works** (see the decision trees in [`toolchain-pdf.md`](toolchain-pdf.md) and [`toolchain-documents.md`](toolchain-documents.md)). The expensive tool is the second pass for the hard subset; the cheap tool is the first pass for the easy 80%.
+- **Default fast, opt into precision.** GROBID defaults to CRF for speed and offers deep-learning models when accuracy matters more than throughput. This skill's analog: **start with rule-based pdfplumber / camelot, escalate to PaddleOCR / docTR / Surya when tesseract fails, escalate to docling when classical methods can't handle the layout, escalate to VLMs only when nothing else works** (see the decision trees in [`extract-pdf.md`](extract-pdf.md) and [`extract-images.md`](extract-images.md)). The expensive tool is the second pass for the hard subset; the cheap tool is the first pass for the easy 80%.
 
 These principles are not novel — they're how every mature document-extraction project that has lasted longer than a single grad-student cycle ended up structured. Naming them lets a reviewer (or a future agent) see the architecture as a coherent stance rather than as five independent file conventions.
 

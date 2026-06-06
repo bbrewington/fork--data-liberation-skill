@@ -94,7 +94,7 @@ The schema goes *inside* the parser pipeline, not at the consumer boundary. Vali
 
 Hand-maintained, one entry per column. Lives at `docs/data-dictionary.md`. The IPEDS pipeline's `DATA_DICTIONARY.md` is the model.
 
-The dictionary plus the published `metadata.yaml` are an informal **DCAT** / **DCAT-US** catalog record (Catalog → Dataset → Distribution); emitting a formal DCAT record is an optional interoperability step covered in [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds), not a precondition for a good dictionary.
+The dictionary plus the published `metadata.yaml` are an informal **DCAT** / **DCAT-US** catalog record (Catalog → Dataset → Distribution); emitting a formal DCAT record is an optional interoperability step covered in [`context.md`](context.md#crosswalk-standards--what-the-skill-already-builds), not a precondition for a good dictionary.
 
 Template per column:
 
@@ -175,11 +175,11 @@ The audit trail. Three rules:
    | `extraction_notes` | string | Free text — vintage drift, OCR fallback used, etc. |
    | `parser_module` | string | Which parser file was used (`scripts.parsers.boulder_sov_2009`) |
 
-3. **Per-row hashes only when the parser legitimately needs them.** If a parser is OCR-fragile and you want each row to declare which source PDF it came from at the page level, add `source_file_sha256` and `page` as columns. The toolchain-pdf reference shows this pattern. Most pipelines don't need it.
+3. **Per-row hashes only when the parser legitimately needs them.** If a parser is OCR-fragile and you want each row to declare which source PDF it came from at the page level, add `source_file_sha256` and `page` as columns. [`extract-pdf.md`](extract-pdf.md) shows this pattern in its parser skeleton. Most pipelines don't need it.
 
 Provenance is what makes the dataset *defensible*. When a downstream user finds an anomaly, the chain is: `(source, vintage)` in the processed CSV → matching row in `provenance.csv` → `source_url` and `sha256` → the original file in `data/original/`. Anyone with a clone can reproduce the extraction and verify.
 
-The sidecar is, in effect, a hand-rolled **W3C PROV** record — its columns map onto PROV's *Entity* (the source artifact), *Activity* (the parser run), and *Agent* (the project). You don't need to serialize PROV-O to benefit from naming the alignment; see [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds) for the optional deepening. Background, not a requirement.
+The sidecar is, in effect, a hand-rolled **W3C PROV** record — its columns map onto PROV's *Entity* (the source artifact), *Activity* (the parser run), and *Agent* (the project). You don't need to serialize PROV-O to benefit from naming the alignment; see [`context.md`](context.md#crosswalk-standards--what-the-skill-already-builds) for the optional deepening. Background, not a requirement.
 
 ## Data quality
 
@@ -187,7 +187,7 @@ The sidecar is, in effect, a hand-rolled **W3C PROV** record — its columns map
 
 ### Five dimensions, mapped to pipeline operations
 
-This skill adopts the five-dimension naming from Cai & Zhu (2015) because it's organized from the *user's* perspective — the right framing for civic data where the publisher and the consumer are different organizations. Every pipeline operation maps to one of these dimensions, so when a reviewer asks "what improved?" or "what broke?" the answer is a dimension, not a vibe. (For the standards-minded: this decomposition parallels the W3C **Data Quality Vocabulary**; the optional alignment is sketched in [`open-data-standards.md`](open-data-standards.md#crosswalk-standards--what-the-skill-already-builds). It's background, not a measurement requirement.)
+This skill adopts the five-dimension naming from Cai & Zhu (2015) because it's organized from the *user's* perspective — the right framing for civic data where the publisher and the consumer are different organizations. Every pipeline operation maps to one of these dimensions, so when a reviewer asks "what improved?" or "what broke?" the answer is a dimension, not a vibe. (For the standards-minded: this decomposition parallels the W3C **Data Quality Vocabulary**; the optional alignment is sketched in [`context.md`](context.md#crosswalk-standards--what-the-skill-already-builds). It's background, not a measurement requirement.)
 
 | Dimension | What it covers | Where this skill produces it |
 |---|---|---|
@@ -206,7 +206,7 @@ For dimensions you actually *compute* in code, four are durable enough across th
 | Dimension | Working definition | How the skill measures it |
 |---|---|---|
 | **Accuracy** | Closeness to a known reference value | `reconcile.py` against the source's own published totals |
-| **Completeness** | Non-null share, with the three-way distinction *missing-and-known-to-exist* / *does-not-exist* / *unknown-whether-exists* recorded in the dictionary | `audit.py` null rates; sentinel-value handling in parsers (see [`cleaning-and-standardization.md`](cleaning-and-standardization.md#4-missing-value-treatment)) |
+| **Completeness** | Non-null share, with the three-way distinction *missing-and-known-to-exist* / *does-not-exist* / *unknown-whether-exists* recorded in the dictionary | `audit.py` null rates; sentinel-value handling in parsers (see [`pipeline.md`](pipeline.md#4-missing-value-treatment)) |
 | **Consistency** | Conformance to declared schema and to cross-source agreement | `pandera` schema violations; cross-source `reconcile.py` |
 | **Timeliness** | `max(0, 1 − (fetched_at − published_at) / publisher_cadence)` | `provenance.csv`'s timestamps + the source's declared cadence |
 
