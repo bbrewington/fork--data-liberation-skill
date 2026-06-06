@@ -34,7 +34,11 @@ The skill triggers on phrases like "data liberation," "PDF extraction," "get the
 data-liberation-skill/
 ├── SKILL.md           # Skill entry point (loaded on activation) — the six levels + workflow
 ├── references/        # Toolchain + methodology docs (loaded on demand), grouped by level
-│   ├── extract.md            # L0: PDF (pdfplumber/camelot/tesseract), tabular (XLSX/CSV/Parquet/db), HTML/XML/JSON, scraping
+│   ├── extract-pdf.md        # L0: born-digital PDFs — pdfplumber, camelot, parser skeleton
+│   ├── extract-tabular.md    # L0: XLSX (incl. panel-format), CSV, Parquet, databases
+│   ├── extract-documents.md  # L0: HTML, XML, JSON, DOCX; docling/kreuzberg unified extractors
+│   ├── extract-web.md        # L0: web scraping — ethics, archives, protocols, dynamic pages
+│   ├── extract-images.md     # L0: images, OCR (tesseract/PaddleOCR/Surya), preprocessing, computer vision
 │   ├── data-modeling.md      # L1–L3: tidy, schema-as-contract, dictionary, concepts/crosswalks, provenance, validation, quality dimensions
 │   ├── pipeline.md           # L2: 9-step cleaning pipeline + discovery/audit/reconcile + bulletproofing + recurring refresh
 │   ├── project-template.md   # L2/L4: project skeleton spec + governance section

@@ -175,7 +175,7 @@ The audit trail. Three rules:
    | `extraction_notes` | string | Free text — vintage drift, OCR fallback used, etc. |
    | `parser_module` | string | Which parser file was used (`scripts.parsers.boulder_sov_2009`) |
 
-3. **Per-row hashes only when the parser legitimately needs them.** If a parser is OCR-fragile and you want each row to declare which source PDF it came from at the page level, add `source_file_sha256` and `page` as columns. The [PDF section of `extract.md`](extract.md) shows this pattern. Most pipelines don't need it.
+3. **Per-row hashes only when the parser legitimately needs them.** If a parser is OCR-fragile and you want each row to declare which source PDF it came from at the page level, add `source_file_sha256` and `page` as columns. [`extract-pdf.md`](extract-pdf.md) shows this pattern in its parser skeleton. Most pipelines don't need it.
 
 Provenance is what makes the dataset *defensible*. When a downstream user finds an anomaly, the chain is: `(source, vintage)` in the processed CSV → matching row in `provenance.csv` → `source_url` and `sha256` → the original file in `data/original/`. Anyone with a clone can reproduce the extraction and verify.
 

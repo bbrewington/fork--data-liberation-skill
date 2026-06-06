@@ -13,7 +13,7 @@ Each level *adds* to the one before. The levels describe **how far** a given eng
 
 | Level | Name | The "___ path" | What it adds | Primary reference |
 |---|---|---|---|---|
-| **L0** | Extract | "just the data" | The CSV(s). **No scaffold, no project** — read the source, emit the table, done. | [`extract.md`](references/extract.md) |
+| **L0** | Extract | "just the data" | The CSV(s). **No scaffold, no project** — read the source, emit the table, done. | [`extract-*` family](references/extract-pdf.md) (pdf · tabular · documents · web · images) |
 | **L1** | + Documentation | "make it citable" | A data dictionary, a per-extract `provenance.csv`, a short README / Survey note, a one-line ethics note | [`data-modeling.md`](references/data-modeling.md#data-dictionary), [`context.md`](references/context.md) |
 | **L2** | + Pipeline & Audit | "someone can re-run this" | A scaffolded project, `pipeline.py`, a pandera schema contract, `audit.py`, `reconcile.py`, the reject port | [`project-template.md`](references/project-template.md), [`pipeline.md`](references/pipeline.md) |
 | **L3** | + Harmonization | "the multi-source path" | A concept catalog / crosswalk (`concepts.py`) with caveats — the cross-source-equivalence contract | [`data-modeling.md`](references/data-modeling.md#concept-catalogs) |
@@ -139,17 +139,16 @@ The full annotated tree is in [`project-template.md`](references/project-templat
 
 ### 3. Extract — pull text and tables out (L0+)
 
-Match the input type to the toolchain. The full decision tree, per-tool guidance, and gotchas are in [`extract.md`](references/extract.md#identify-the-input-type); the short version:
+Match the input type to the toolchain, then open **only the extraction reference for the input you have** — the L0 toolchain is split by input so an agent extracting a PDF never loads the scraping or OCR material. Per-tool guidance, decision trees, and gotchas live in each file:
 
-| Input | Default | Fallback |
+| Input | Default → fallback | Reference |
 |---|---|---|
-| Born-digital PDF (text) / ruled grid | `pdfplumber` / `camelot` (lattice) | the other |
-| Scanned / image PDF | `tesseract` via `pytesseract` | PaddleOCR / docling |
-| HTML table / no-table page | `pandas.read_html` / `BeautifulSoup` | `playwright` if JS-rendered |
-| Nested JSON / XML | `pandas.json_normalize` / `lxml` + XPath | manual flatten / `read_xml` |
-| XLSX clean / panel-format | `pandas.read_excel` / `openpyxl` + unmerge | per-vintage parser |
-| CSV / Parquet / database | `read_csv` (explicit dtypes) / `read_parquet` / `sqlalchemy` + `duckdb` | — |
-| Web scrape (recurring) | `requests` + `BeautifulSoup` + idempotent cache | Wayback Machine |
+| Born-digital PDF (text) / ruled grid | `pdfplumber` / `camelot` (lattice) | [`extract-pdf.md`](references/extract-pdf.md) |
+| Scanned / image-only PDF, photos, image files, maps | `tesseract` → PaddleOCR / Surya / docling VLM | [`extract-images.md`](references/extract-images.md) |
+| XLSX (clean / panel-format), CSV, Parquet, database | `read_excel` / `openpyxl` / `read_csv` (explicit dtypes) / `read_parquet` / `sqlalchemy` + `duckdb` | [`extract-tabular.md`](references/extract-tabular.md) |
+| HTML (table / layout), XML, JSON | `read_html` / `selectolax` / `lxml` + XPath / `json_normalize` | [`extract-documents.md`](references/extract-documents.md) |
+| Web scrape (dynamic / recurring) | `requests` + cache / `playwright`; Wayback fallback | [`extract-web.md`](references/extract-web.md) |
+| Multi-format corpus, end-to-end | `docling` / `kreuzberg` | [`extract-documents.md`](references/extract-documents.md#modern-unified-extractors--when-one-tool-is-enough) |
 
 At **L1+**, capture a per-extract manifest entry (input SHA256, page range or URL, tool + version, timestamp, row count) appended to `data/processed/provenance.csv` — the sidecar, joined by `(source, vintage)`, not carried on every row. See [`data-modeling.md`](references/data-modeling.md#provenance).
 
@@ -218,7 +217,12 @@ The recurring-refresh pattern extends naturally: the cron-driven `discover → f
 
 Seven references, loaded on demand. The level each primarily serves is noted.
 
-- [`references/extract.md`](references/extract.md) — **L0.** The extraction toolchain: PDF (pdfplumber / camelot / tesseract), tabular (XLSX / CSV / Parquet / databases), documents (HTML / XML / JSON), and web scraping — one master decision tree, per-tool gotchas, fallback chains.
+- **L0 — the extraction toolchain, split by input type** (open only the one you have; the routing table is in the [Extract phase](#3-extract--pull-text-and-tables-out-l0) above):
+  - [`references/extract-pdf.md`](references/extract-pdf.md) — born-digital PDFs: pdfplumber, camelot, the working parser skeleton.
+  - [`references/extract-tabular.md`](references/extract-tabular.md) — XLSX (incl. panel-format), CSV, Parquet, databases; dtype hygiene.
+  - [`references/extract-documents.md`](references/extract-documents.md) — HTML, XML, JSON, DOCX; the unified extractors (docling / kreuzberg).
+  - [`references/extract-web.md`](references/extract-web.md) — web scraping: ethics, archives, protocols, dynamic pages.
+  - [`references/extract-images.md`](references/extract-images.md) — images, OCR (tesseract / PaddleOCR / Surya), preprocessing, and computer-vision layout analysis.
 - [`references/data-modeling.md`](references/data-modeling.md) — **L1–L3.** What to produce: Wickham-tidy shape, schema-as-contract, the data dictionary, concept catalogs / crosswalks, provenance, pandera validation, filter-pivot recipes, and the five-dimension quality framework (the canonical definition).
 - [`references/pipeline.md`](references/pipeline.md) — **L2.** How to process and verify: the 9-step parser-time cleaning pipeline (the canonical definition), plus discovery, audit, reconciliation, pre-extraction bulletproofing, and the recurring-refresh PR pattern.
 - [`references/project-template.md`](references/project-template.md) — **L2 / L4.** The full project skeleton spec — what each file does and why — plus the governance section (the L4 anchor).
