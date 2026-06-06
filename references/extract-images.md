@@ -2,6 +2,8 @@
 
 When the input is image-based rather than a text layer — scanned PDFs, photographed documents, image files (PNG/TIFF/JPG), maps, exhibits, signatures — extraction can't read characters off the page; it has to recover them. The path is **rasterize → preprocess → OCR (or a vision model) → handle the output as text**. Quality varies dramatically by document and is dominated by input image quality, so preprocessing matters more than the engine choice. This is the **Level 0** reference for the image/OCR/CV branch; the born-digital PDF path is in [`extract-pdf.md`](extract-pdf.md), and multi-format unified extractors (docling/kreuzberg) are in [`extract-documents.md`](extract-documents.md#modern-unified-extractors--when-one-tool-is-enough).
 
+This file covers two related jobs. The first is **OCR** — recovering text from a document that happens to be an image (most of the sections below). The second is **computer vision when the image itself is the dataset** — counting objects in a satellite tile, estimating a crowd, reading measurements off a video, or flagging that a source image was synthetically generated. There the deliverable isn't transcribed text but *structured measurements derived from pixels*. See [Computer vision when the image is the dataset](#computer-vision-when-the-image-is-the-dataset).
+
 ## When the input is image-based
 
 Run the same triage you'd run on any PDF: is there a usable text layer? Open the file in a viewer and try to **select and copy text** from it. If you get the content back, you have a born-digital document — use the path in [`extract-pdf.md`](extract-pdf.md). If you get nothing or garbled glyphs, or the input is a raster image file (PNG/TIFF/JPG) to begin with, the text doesn't exist as characters yet and you're here: rasterize each page (if it's a PDF), preprocess, and OCR.
@@ -82,7 +84,7 @@ PDFs aren't always text-with-tables. Court filings, incident reports, environmen
 
 Update `provenance.csv` with an `images_extracted` count per (source, vintage) so the audit can flag the drift case where a refresh suddenly stops emitting images (usually a parser regression or a publisher format change).
 
-## Layout analysis and computer vision
+## Document layout analysis
 
 For documents where the structure is not just tables but mixed layout (figures, multi-column text, sidebars), reach for:
 
@@ -92,6 +94,38 @@ For documents where the structure is not just tables but mixed layout (figures, 
 
 These are heavier dependencies. Reach for them only when the layout itself is the problem; for table-centric extraction, pdfplumber/camelot remain the default.
 
+## Computer vision when the image is the dataset
+
+Sometimes the photograph, satellite tile, or video clip *is* the source — there's no text to OCR, and the deliverable is a **structured measurement derived from pixels**: a count, a position, a timestamp, an authenticity flag. The New York Times R&D group's [computer-vision-for-journalism agenda](https://rd.nytimes.com/projects/computer-vision-vision/) is a useful map of the tasks that show up in reporting; each one is, in liberation terms, a way of turning an image corpus into a tidy table. The discipline is the same as everywhere else in this skill: **every CV-derived value is a model's estimate, not a reading** — so it carries a confidence, a model + version in `provenance.csv`, and an `extraction_quality` of `cv_detection` / `cv_estimate`, and it gets validated against a hand-labeled sample the way [`reconcile.py`](pipeline.md#reconciliation) validates totals.
+
+| CV task | What you liberate | Methods / OSS tools | Civic caveat |
+|---|---|---|---|
+| **Satellite & aerial imagery** | Object counts, footprints/areas, and change/event detection per tile × date (buildings, vehicles, ships, flooding, deforestation, construction) | Tile the raster, run a detector (`YOLO`, `Detectron2`) or segmenter ([Segment Anything](https://github.com/facebookresearch/segment-anything)); geospatial frameworks [TorchGeo](https://github.com/microsoft/torchgeo), [Raster Vision](https://github.com/azavea/raster-vision); diff across vintages for change detection | Georeference every detection (lat/lon, not pixel x/y); counts are estimates — validate against a hand-counted sample of tiles |
+| **Crowd counting** | An attendance estimate (with a range) from a photo or video frame | Density-estimation models (CSRNet and successors) for dense crowds; object detection for sparse ones | Report a *range with method*, never a single authoritative number; crowd estimates are politically contested — document the model and the assumptions |
+| **Archive / document transcription at scale** | Web-native, human-parity text + structured fields from scanned newspaper or document archives | The OCR engines above, plus VLM transcription ([GraniteDocling](https://huggingface.co/ibm-granite/granite-docling-258M), Qwen-VL-class models); article/column segmentation for newspaper layouts before OCR | This is the high-volume version of the rest of this file; flag OCR/VLM provenance and spot-check transcription accuracy per vintage |
+| **Spacetime-syncing video** | A synchronized event timeline + camera positions, from multiple found clips (bystander, security, dashcam) of one event | Audio/visual alignment for time-sync; structure-from-motion ([COLMAP](https://colmap.github.io/)) for camera geometry | This is forensic/verification work; record every assumption — the output is an evidentiary reconstruction, not a raw reading |
+| **3D scene reconstruction** | An interactive 3D model of a scene from photos/video | Photogrammetry (COLMAP), NeRF, 3D Gaussian Splatting | A reconstruction is interpretive; label it as a model and keep the source frames as the immutable originals |
+| **Pose / performance from uncalibrated video** | Per-frame measurements (positions, speeds, angles) from cameras of unknown location/distance | Pose estimation ([MediaPipe](https://github.com/google-ai-edge/mediapipe), MMPose, OpenPose) + homography/camera calibration | Uncalibrated cameras yield *relative*, not absolute, measurements unless you calibrate against a known reference in-frame |
+| **Synthetic-media detection & provenance** | An authenticity signal on a source image/video *before* you build a dataset on it | Detection models exist but are unreliable and decay fast; the durable path is reading content-provenance metadata ([C2PA / Content Credentials](https://c2pa.org/)) and recording it | Treat any detector score as a weak signal, not proof; prefer provenance metadata. This is a *verification gate* on the source, upstream of liberation |
+| **Image / video enhancement** | A more legible working copy: upscaled, deblurred, colorized, or frame-interpolated | Super-resolution ([Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN)), colorization, frame interpolation (RIFE) | **Two-edged.** Enhancing a *working copy* to make a degraded scan OCR-able is fine; but enhancement *invents* detail that was never in the source. Never overwrite the immutable original, always flag enhanced media in provenance, and never treat invented detail (a colorized photo, an upscaled "plate number") as evidence |
+
+Two governance hooks tie this back to the rest of the skill:
+
+- **CV-derived fields are inferred, not observed.** Mark them (`extraction_quality = cv_detection | cv_estimate`), store the model name + version + per-detection confidence in `provenance.csv`, and — for counts and measurements — validate against a hand-labeled sample, exactly as reconciliation checks an authoritative total. A CV pipeline with no ground-truth check is a guess with good production values.
+- **Some of these are real gates, not advisory.** Face recognition / biometric identification, and any handling of possibly-synthetic media, sit squarely in the privacy-and-CARE territory that the skill treats as a hard gate — see [`context.md`](context.md) and the governance section of [`project-template.md`](project-template.md#governance). Decide *whether* to run the model before deciding how.
+
+### Verifying and locating source media — the OSINT toolkits
+
+Before you build a dataset on a photo or video, you often have to answer provenance questions about the *medium* itself: where and when was it captured, is it authentic, and is this "exclusive" image actually recycled from an older event? Those questions belong in the Survey note and `provenance.csv`, upstream of any extraction. The standing practitioner catalog is **Bellingcat's [Online Investigation Toolkit, image/video category](https://bellingcat.gitbook.io/toolkit/categories/image-video)** — a curated, regularly-updated index that organizes the tools by job:
+
+- **Reverse image search** (Google Lens, Yandex, TinEye, Bing Visual Search) — the cheap first check: has this image appeared earlier or elsewhere? Catches recycled and miscaptioned media before it contaminates a dataset. Complements the near-duplicate detection in the table above.
+- **Metadata / EXIF** viewers — camera model, capture timestamp, and sometimes GPS coordinates embedded in the file. Powerful when present, but trivially stripped or forged, so corroborate (a GPS tag is a lead, not proof) and record what you relied on.
+- **Geolocation & chronolocation** — fixing *where* (landmark matching, shadow/sun-angle analysis, overlaying satellite imagery) and *when* (shadow length, weather, signage). This is the manual counterpart to the satellite and spacetime-syncing rows above; the output is a coordinate + time you can put on a row.
+- **Video tools** — keyframe extraction and frame-level forensics ([InVID-WeVerify](https://www.invid-project.eu/), the YouTube/video metadata viewers) for pulling stills to OCR or geolocate and for checking whether a clip has been edited.
+- **Facial recognition** — listed in the toolkit, but for civic-liberation work this is a **hard privacy/CARE gate**, almost always out of scope; see the governance pointer above.
+
+The liberation framing: these tools establish the *provenance and authenticity* of image/video sources the same way the [pre-extraction bulletproofing checklist](pipeline.md#pre-extraction-bulletproofing) establishes it for documents. Use them to fill the `source_url`, `retrieved_at`, and `extraction_notes` of `provenance.csv` — and to decide whether a source is trustworthy enough to liberate at all.
+
 ## Common failure modes
 
 | Symptom | Likely cause | Fix |
@@ -99,6 +133,9 @@ These are heavier dependencies. Reach for them only when the layout itself is th
 | OCR text has "rn" where you expect "m" | Tesseract artifact on small fonts | Increase image resolution to 400 dpi; consider character whitelist if domain is numeric |
 | OCR drops or mangles digits in numeric tables | Low resolution, or "0"/"O" and "1"/"I"/"l" confusion | Raise dpi to 400; restrict with `tessedit_char_whitelist`; try PaddleOCR/Surya |
 | OCR rows are fragmented or out of order | Wrong PSM, or skew/multi-column layout | Try `--psm 6`/`--psm 11`; deskew first; use Surya for reading order |
+| CV counts look plausible but are wrong | No ground-truth check on the detector | Hand-label a sample of images/tiles and validate against it, like `reconcile.py` checks a total; report precision/recall |
+| Satellite detections can't be joined to places | Stored in pixel coordinates, not georeferenced | Carry lat/lon (and the tile's CRS) on every detection, not pixel x/y |
+| An enhanced/upscaled image is cited as evidence | Super-resolution / colorization invented detail | Never treat enhanced media as source; keep the original immutable and flag the enhanced copy in provenance |
 
 ---
 
@@ -109,3 +146,6 @@ These are heavier dependencies. Reach for them only when the layout itself is th
 - Non-default OCR configuration — PSM mode and character whitelist.
 - The `extraction_quality` values used (`ocr_tesseract`, `ocr_paddleocr`, `ocr_surya`, `ocrmypdf`, …) so downstream users know which engine produced each batch.
 - Whether OCRmyPDF was used to add a text layer in place (and that the original scanned PDF is preserved as the immutable source).
+- For any **computer-vision** task: the model + version per task, the hand-labeled sample used to validate it (and the measured precision/recall), the georeferencing/calibration scheme for counts and measurements, and the `extraction_quality` values used for inferred fields (`cv_detection`, `cv_estimate`).
+- Whether any **biometric, geolocation, or synthetic-media** model was run, and the privacy/CARE decision behind it (these are governance gates, not defaults).
+- For media-verification work, the tools used and what they established — see the verification-toolkit note below.
