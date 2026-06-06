@@ -215,7 +215,7 @@ The recurring-refresh pattern extends naturally: the cron-driven `discover → f
 
 ## Reference index
 
-Seven references, loaded on demand. The level each primarily serves is noted.
+Ten references, grouped by the level each primarily serves and loaded on demand. The five `extract-*` files are the L0 toolchain (open only the input you have); the rest serve L1–L5.
 
 - **L0 — the extraction toolchain, split by input type** (open only the one you have; the routing table is in the [Extract phase](#3-extract--pull-text-and-tables-out-l0) above):
   - [`references/extract-pdf.md`](references/extract-pdf.md) — born-digital PDFs: pdfplumber, camelot, the working parser skeleton.
